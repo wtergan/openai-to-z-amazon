@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+# Task-Magic runtime junk
+.ai/
+.windsurf/
+# Secrets
+.env
+# Data + rasters
+data/
