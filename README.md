@@ -21,6 +21,6 @@ The checkpoints are derived from the [Checkpoints: OpenAI to Z Challenge.pdf](ht
 This README.md file and a GLOBAL requirements.txt file are located at the root of the repository.
 The GLOBAL requirements.txt file contains all of the dependencies needed for the project in its entirety.
 
-### Future work
+### Current and Future work
 
 In addition to the checkpoint directories are other pertinent code files and directories that are not directly related to the checkpoints but are still wholy relevant to the project.
