@@ -4,22 +4,34 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()  # Loads environment variables from .env if present
+OT_API_KEY = os.getenv("OT_API_KEY")
 
 # ===============================================================================
-# LiDAR PARAMETERS
+# LiDAR PARAMETERS: OpenTopography API
 # ===============================================================================
-LIDAR_DATASET_ID = "OT.072016.32611.1"  # Example OpenTopography dataset
-LIDAR_URL = (
-    "https://portal.opentopography.org"
-    f"/getOTDataset?datasetID={LIDAR_DATASET_ID}&fileFormat=LAZ"
-)
 
-def fetch_lidar(url: str = LIDAR_URL) -> str:
-    """Download a small LiDAR .laz file from OpenTopography."""
-    tf = tempfile.NamedTemporaryFile(suffix=".laz", delete=False)
-    resp = requests.get(url, timeout=60)
+def get_ot_lidar(demtype: str, south: int, north: int, west: int, east: int, 
+    api_key=OT_API_KEY) -> str:
+    """
+    Download a small LiDAR .tif file from OpenTopography API.
+    Takes in the available global raster dataset type (demtype), the bbox coordinates,
+    and the name to save the file as.
+    """
+    url = "https://portal.opentopography.org/API/globaldem"
+    params = {
+        "demtype": demtype,
+        "south": south,
+        "north": north,
+        "west": west,
+        "east": east,
+        "outputFormat": "GTiff",
+        "API_Key": api_key
+    }
+    tf = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+    resp = requests.get(url, params=params, timeout=60)
     resp.raise_for_status()
     tf.write(resp.content)
+    print(f"Downloaded {tf.name}")
     tf.close()
     return tf.name
 
@@ -43,6 +55,7 @@ def fetch_sentinel2_bands(tile=S2_TILE, date_path=S2_DATE_PATH, bands=S2_BANDS):
         resp = requests.get(url, timeout=60)
         resp.raise_for_status()
         tf.write(resp.content)
+        print(f"Downloaded {tf.name}")
         tf.close()
         band_files[band] = tf.name
     return band_files
@@ -57,7 +70,7 @@ def fetch_dataset(dataset_type: str = "lidar") -> str:
     :return: path(s) to downloaded file(s)
     """
     if dataset_type == "lidar":
-        return fetch_lidar()
+        return get_ot_lidar(demtype="COP30", south=-5.253821, north=-3.983349, west=-59.813892, east=-58.332325)
     elif dataset_type == "sentinel2":
         return fetch_sentinel2_bands()
     else:
