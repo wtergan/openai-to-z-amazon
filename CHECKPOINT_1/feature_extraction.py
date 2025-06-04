@@ -4,6 +4,7 @@ import rasterio
 import matplotlib.pyplot as plt
 import io
 import base64
+from matplotlib.colors import LightSource
 
 # ===============================================================================
 # LiDAR FEATURE EXTRACTION: OpenTopography API
@@ -15,16 +16,29 @@ def ot_lidar_plot(lidar_path: str, show_plot: bool = True) -> dict:
     """
     with rasterio.open(lidar_path) as src:
         lidar_arr = src.read(1).astype(np.float32)
+        if src.nodata is not None:
+            lidar_arr = np.where(lidar_arr == src.nodata, np.nan, lidar_arr)
         
-        plt.figure(figsize=(10, 10))
-        plt.imshow(lidar_arr, cmap='terrain')
-        plt.colorbar(label="Elevation (m)")
-        plt.title("LiDAR Elevation Data")
-        plt.xlabel("x")
-        plt.ylabel("y")
+        # Usage of 2-98 percentiles for avoiding outliers that may affect color mapping
+        vmin, vmax = np.nanpercentile(lidar_arr, [2, 98])
+
+        # Figure with subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+
+        # Main elevation plot
+        im1 = ax1.imshow(lidar_arr, cmap='terrain', vmin=vmin, vmax=vmax)
+        plt.colorbar(im1, ax=ax1, label='Elevation (m)')
+        ax1.set_title("LiDAR Elevation Data (2-98% range)")
+
+        # Hillshade for better terrain visualization, using LightSource for azimuth and altitude
+        ls = LightSource(azdeg=315, altdeg=45)
+        hillshade = ls.hillshade(lidar_arr, vert_exag=1, dx=1, dy=1, fraction=1.0)
+        ax2.imshow(hillshade, cmap='gray', alpha=0.8)
+        ax2.set_title("Hillshade Visualization")
         
         # Save plot to BytesIO buffer as JPEG, tight bbox, 150 DPI
         buf = io.BytesIO()
+        plt.tight_layout()
         plt.savefig(buf, format="JPEG", bbox_inches="tight", dpi=150)
 
         if show_plot:
@@ -43,6 +57,8 @@ def ot_lidar_plot(lidar_path: str, show_plot: bool = True) -> dict:
                 "std": float(np.nanstd(lidar_arr)),
                 "min": float(np.nanmin(lidar_arr)),
                 "max": float(np.nanmax(lidar_arr)),
+                "percentile_2": float(vmin),
+                "percentile_98": float(vmax),
                 "shape": lidar_arr.shape
             },
             # Some spatial metadata: coordinate reference system, and bbox info.
