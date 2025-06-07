@@ -12,7 +12,7 @@ load_dotenv()
 OPENAI_PROVIDER = "openai"
 OPENROUTER_PROVIDER = "openrouter"
 OPENAI_DEFAULT_MODEL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o-mini")
-OPENROUTER_DEFAULT_MODEL = os.getenv("OPENROUTER_DEFAULT_MODEL", "google/gemma-3-27b-it:free")
+OPENROUTER_DEFAULT_MODEL = os.getenv("OPENROUTER_DEFAULT_MODEL", "google/gemma-3-27b-it")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -22,15 +22,15 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # API MODEL CALLING
 # ===============================================================================
 def call_model_responses(
-    plot_stats: dict,
+    analysis_results: dict,
     provider: str = OPENROUTER_PROVIDER,
     model: Optional[str] = None,
     temperature: float = 1.0,
-    max_tokens: int = 1000,
+    max_tokens: int = 32768, # For OpenRouter model(s) for now, subject to change of course.
     **kwargs
 ) -> str:
     """
-    Send `stats` to the selected provider (OpenAI or OpenRouter) and get a plain-English description.
+    Sending image and stats to the selected provider (OpenAI or OpenRouter) and get a plain-English description.
     Defaults to OpenRouter (for now).
     """
     if provider not in [OPENAI_PROVIDER, OPENROUTER_PROVIDER]:
@@ -41,12 +41,12 @@ def call_model_responses(
         if client is None:
             raise ValueError("OpenAI client not initialized or API key missing.")
         model_name = model or OPENAI_DEFAULT_MODEL
-        instructions = "You are an archaeologist. Analyze the provided statistics and describe the surface features in plain English."
+        instructions = "You are an archaeologist and remote sensing analyst. Analyze the provided data (image and/or stats), then describe the surface features and interpret the statistics in plain English."
         user_message = {
             "role": "user",
             "content": (
-                f"Here are basic stats: {json.dumps(plot_stats)}.\n"
-                "Describe the surface features in plain English."
+                f"Here are basic stats: {json.dumps(analysis_results['statistics'], indent=2)}.\n"
+                "Describe the surface features and interpret the statistics in plain English."
             ),
         }
         try:
@@ -78,19 +78,22 @@ def call_model_responses(
         messages = [
             {
                 "role": "system",
-                "content": "You are an archaeologist. Analyze the provided plot image and stats, then describe the surface features and stats in plain English."
+                "content": ("You are an archaeologist and remote sensing analyst. Analyze the provided data (image and/or stats), "
+                            "then describe the surface features and interpret the statistics in plain English." )
             },
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": f"Here are the basic stats about this LiDAR elevation data: {json.dumps(plot_stats['statistics'], indent=2)}. Please analyze the elevation plot and describe the surface features in plain English."
+                        "text": ("Here are the basic stats about this LiDAR elevation data: "
+                                 f"{json.dumps(analysis_results['statistics'], indent=2)}. "
+                                 "Please analyze the elevation plot and describe the surface features and interpret the statistics in plain English.")
                     },
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{plot_stats['plot']}"
+                            "url": f"data:image/jpeg;base64,{analysis_results['image']}"
                         }
                     }
                 ]
@@ -104,14 +107,23 @@ def call_model_responses(
             **kwargs
         }
         try:
+            print("Sending request to OpenRouter API...")
             resp = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
                 json=data
             )
+            print("Response received from OpenRouter API.", resp.status_code)
+            resp_json = resp.json()
             if resp.status_code != 200:
-                return f"[OpenRouter API error] {resp.text}"
-            return resp.json()["choices"][0]["message"]["content"].strip()
+                # Return the full error message from the API if available:
+                return f"[OpenRouter API error] {resp_json.get('error', resp.text)}"
+            if "choices" not in resp_json:
+                # Log the full response for debugging:
+                return f"[OpenRouter API error] Unexpected response format: {json.dumps(resp_json, indent=2)}"
+            response_text = resp_json["choices"][0]["message"]["content"].strip()
+            print(f"OpenRouter API usage: {resp_json.get('usage', 'unknown')}")
+            return response_text
         except Exception as e:
             return f"[OpenRouter API error] {str(e)}"
     else:
@@ -120,9 +132,9 @@ def call_model_responses(
 # ===============================================================================
 # BACKWARD-COMPATIBLE OPENAI FUNCTION (optional usage, easy for OpenAI users)
 # ===============================================================================
-def call_openai_responses(plot_stats: dict, model: str = OPENAI_DEFAULT_MODEL) -> str:
+def call_openai_responses(analysis_results: dict, model: str = OPENAI_DEFAULT_MODEL) -> str:
     """
-    Backward-compatible: Send `stats` to the OpenAI Responses API and get a plain-English description.
+    Backward-compatible: Send `analysis_results` to the OpenAI Responses API and get a plain-English description.
     Equivalent to call_model_responses(..., provider='openai').
     """
-    return call_model_responses(plot_stats, provider=OPENAI_PROVIDER, model=model)
+    return call_model_responses(analysis_results, provider=OPENAI_PROVIDER, model=model)
