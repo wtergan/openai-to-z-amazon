@@ -1,16 +1,64 @@
 import os
 import tempfile
 import requests
+import base64
+import ee
+import urllib.request
+import io
+from PIL import Image
 from dotenv import load_dotenv
 
-load_dotenv()  # Loads environment variables from .env if present
+# ===============================================================================
+# ENVIRONMENT SETUP
+# ===============================================================================
+load_dotenv()  
 OT_API_KEY = os.getenv("OT_API_KEY")
+
+# GEE Initialization state and Project ID:
+gee_initialized_successfully = False
+GEE_PROJECT_ID = os.getenv("GEE_PROJECT_ID")
+
+def initialize_gee():
+    global gee_initialized_successfully
+    if gee_initialized_successfully:
+        return True
+    try:
+        print("Attempting GEE initialization...")
+        if GEE_PROJECT_ID:
+            ee.Initialize(project=GEE_PROJECT_ID, opt_url='https://earthengine-highvolume.googleapis.com')
+        else:
+            ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com')
+        print("GEE initialized successfully (using existing credentials or default project).")
+        gee_initialized_successfully = True
+    except ee.EEException as e_init:
+        print(f"GEE auto-initialization failed: {e_init}. Attempting authentication flow.")
+        try:
+            ee.Authenticate() # This will open a browser tab for auth code.
+            if GEE_PROJECT_ID:
+                ee.Initialize(project=GEE_PROJECT_ID, opt_url='https://earthengine-highvolume.googleapis.com')
+            else:
+                ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com')
+            print("GEE authenticated and initialized successfully.")
+            gee_initialized_successfully = True
+        except Exception as e_auth:
+            print(f"CRITICAL: GEE authentication and initialization failed: {e_auth}")
+            gee_initialized_successfully = False
+    return gee_initialized_successfully
+
+# ===============================================================================
+# DEFAULT GLOBAL BBOX COORDINATES (Amazonas, Brazil), used for now
+# ===============================================================================
+S2_DEFAULT_SOUTH = -5.253821
+S2_DEFAULT_NORTH = -3.983349
+S2_DEFAULT_WEST = -59.813892
+S2_DEFAULT_EAST = -58.332325
+S2_DEFAULT_START_DATE = "2023-01-01"
+S2_DEFAULT_END_DATE = "2023-12-31"
 
 # ===============================================================================
 # LiDAR PARAMETERS: OpenTopography API
 # ===============================================================================
-
-def get_ot_lidar(demtype: str, south: int, north: int, west: int, east: int, 
+def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, east: float, 
     api_key=OT_API_KEY) -> str:
     """
     Download a small LiDAR .tif file from OpenTopography API.
@@ -36,43 +84,83 @@ def get_ot_lidar(demtype: str, south: int, north: int, west: int, east: int,
     return tf.name
 
 # ===============================================================================
-# Sentinel-2 PARAMETERS
+# Sentinel-2 PARAMETERS: Google Earth Engine
 # ===============================================================================
-S2_TILE = "22/MU/L"
-S2_DATE_PATH = "2024/5/26/0"
-S2_BANDS = ["2", "3", "4"]  # B02 (blue), B03 (green), B04 (red)
+def cloud_mask_s2_sr(image: ee.Image) -> ee.Image:
+    """Cloud mask creation for Sentinel-2 Surface Reflectance using SCL band."""
+    scl = image.select('SCL')
+    clear_mask = scl.neq(1).And(scl.neq(3)).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
+    valid_data_mask = image.select('B2').gt(0)
+    return image.updateMask(clear_mask.And(valid_data_mask)).divide(10000)
 
-def fetch_sentinel2_bands(tile=S2_TILE, date_path=S2_DATE_PATH, bands=S2_BANDS):
-    """Download three Sentinel-2 RGB bands as small .jp2 files from AWS."""
-    base_url = (
-        "https://sentinel-s2-l1c.s3.amazonaws.com/tiles/"
-        f"{tile}/{date_path}/B0{{band}}.jp2"
+def fetch_sentinel2_gee_data(
+    south: float, north: float, west: float, east: float, start_date: str, end_date: str,
+    max_cloud_percentage: float = 20.0
+) -> dict:
+    """
+    Fetching Sentinel-2 L2A median composite from GEE for a given bbox and date range.
+    Returns a dictionary containing the GEE image object and ROI.
+    """
+    if not gee_initialized_successfully:
+        if not initialize_gee():
+            raise RuntimeError("GEE could not be initialized. Cannot fetch Sentinel-2 data.")
+    roi = ee.Geometry.Rectangle([west, south, east, north])
+
+    # Filtering ImageCollection by ROI, date range, as well as cloud percentage:
+    s2_collection = (
+        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+        .filterBounds(roi)
+        .filterDate(ee.Date(start_date), ee.Date(end_date))
+        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", max_cloud_percentage))
     )
-    band_files = {}
-    for band in bands:
-        url = base_url.format(band=band)
-        tf = tempfile.NamedTemporaryFile(suffix=f"_B0{band}.jp2", delete=False)
-        resp = requests.get(url, timeout=60)
-        resp.raise_for_status()
-        tf.write(resp.content)
-        print(f"Downloaded {tf.name}")
-        tf.close()
-        band_files[band] = tf.name
-    return band_files
+    count = s2_collection.size().getInfo()
+    if count == 0:
+        print(f"Warning: No Sentinel-2 images found for the given criteria in GEE.")
+        print(f"ROI: {west},{south},{east},{north}")
+        print(f"Date: {start_date} to {end_date}, Cloud %: < {max_cloud_percentage}")
+        return {"image": None, "roi": roi, "count": 0, "error": "No images found"}
+    print(f"Found {count} Sentinel-2 images. Creating median composite...")
+    
+    # Creating median composite via applying cloud/valid mask, selecting defined bands, and clipping to ROI:
+    composite_image = (
+        s2_collection.map(cloud_mask_s2_sr)
+        .select(['B2', 'B3', 'B4', 'B8'])
+        .median()
+        .clip(roi)
+    )
+    # Lets check if the median composite image is valid: if no band names, all pixels masked, thus empty. Not good.
+    try:
+        composite_image.bandNames().getInfo()
+    except ee.EEException as e:
+        print(f"Error creating valid GEE composite (likely all pixels masked): {e}")
+        return {"image": None, "roi": roi, "count": count, "error": "Composite image is empty/invalid."}
+    print(f"Sentinel-2 GEE median composite created for period {start_date} to {end_date}.")
+    return {
+        "image": composite_image,
+        "roi": roi,
+        "count": count,
+        "start_date": start_date,
+        "end_date": end_date,
+        "roi_bounds": [west, south, east, north]
+    }
 
 # ===============================================================================
 # DATASET SELECTION
 # ===============================================================================
-def fetch_dataset(dataset_type: str = "lidar") -> str:
+def fetch_dataset(dataset_type: str = "lidar") -> dict:
     """
-    Download a dataset based on type.
+    Download/fetch dataset based on type.
     :param dataset_type: 'lidar' or 'sentinel2'
-    :return: path(s) to downloaded file(s)
+    :return: Path to downloaded LiDAR file (str) or dict with GEE image and ROI for Sentinel-2.
     """
     if dataset_type == "lidar":
-        return get_ot_lidar(demtype="COP30", south=-5.253821, north=-3.983349, west=-59.813892, east=-58.332325)
+        return fetch_lidar_ot_data(demtype="COP30", south=S2_DEFAULT_SOUTH, north=S2_DEFAULT_NORTH, west=S2_DEFAULT_WEST, east=S2_DEFAULT_EAST)
     elif dataset_type == "sentinel2":
-        return fetch_sentinel2_bands()
+        return fetch_sentinel2_gee_data(
+            south=S2_DEFAULT_SOUTH, north=S2_DEFAULT_NORTH,
+            west=S2_DEFAULT_WEST, east=S2_DEFAULT_EAST,
+            start_date=S2_DEFAULT_START_DATE, end_date=S2_DEFAULT_END_DATE
+        )
     else:
         raise ValueError("dataset_type must be 'lidar' or 'sentinel2'")
 
