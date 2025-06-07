@@ -8,6 +8,7 @@ import ee
 import urllib.request
 from PIL import Image
 from matplotlib.colors import LightSource
+import os
 
 # ===============================================================================
 # LiDAR FEATURE EXTRACTION: OpenTopography API
@@ -16,67 +17,74 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> dict:
     """
     Generate and display a plot of LiDAR data along with some stats.
     Returns a dict containing the plot as a BytesIO obj, and the stats.
+    Cleans up the temporary lidar_path file upon completion or error.
     """
-    with rasterio.open(lidar_path) as src:
-        print("LiDAR data read.")
-        lidar_arr = src.read(1).astype(np.float32)
-        if src.nodata is not None:
-            lidar_arr = np.where(lidar_arr == src.nodata, np.nan, lidar_arr)
-        
-        # Usage of 2-98 percentiles for avoiding outliers that may affect color mapping:
-        vmin, vmax = np.nanpercentile(lidar_arr, [2, 98])
+    try:
+        with rasterio.open(lidar_path) as src:
+            print("LiDAR data read.")
+            lidar_arr = src.read(1).astype(np.float32)
+            if src.nodata is not None:
+                lidar_arr = np.where(lidar_arr == src.nodata, np.nan, lidar_arr)
+            
+            # Usage of 2-98 percentiles for avoiding outliers that may affect color mapping:
+            vmin, vmax = np.nanpercentile(lidar_arr, [2, 98])
 
-        # Figure with subplots:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+            # Figure with subplots:
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
 
-        # Main elevation plot:
-        print("Generating LiDAR elevation plot...")
-        im1 = ax1.imshow(lidar_arr, cmap='terrain', vmin=vmin, vmax=vmax)
-        plt.colorbar(im1, ax=ax1, label='Elevation (m)')
-        ax1.set_title("LiDAR Elevation Data (2-98% range)")
+            # Main elevation plot:
+            print("Generating LiDAR elevation plot...")
+            im1 = ax1.imshow(lidar_arr, cmap='terrain', vmin=vmin, vmax=vmax)
+            plt.colorbar(im1, ax=ax1, label='Elevation (m)')
+            ax1.set_title("LiDAR Elevation Data (2-98% range)")
 
-        # Hillshade for better terrain visualization, using LightSource for azimuth and altitude:
-        print("Generating LiDAR hillshade...")
-        ls = LightSource(azdeg=315, altdeg=45)
-        hillshade = ls.hillshade(lidar_arr, vert_exag=1, dx=1, dy=1, fraction=1.0)
-        ax2.imshow(hillshade, cmap='gray', alpha=0.8)
-        ax2.set_title("Hillshade Visualization")
-        
-        # Show the plot if show_image is True:
-        print("Displaying the plot(s)...")
-        if show_image:
-            plt.show()
+            # Hillshade for better terrain visualization, using LightSource for azimuth and altitude:
+            print("Generating LiDAR hillshade...")
+            ls = LightSource(azdeg=315, altdeg=45)
+            hillshade = ls.hillshade(lidar_arr, vert_exag=1, dx=1, dy=1, fraction=1.0)
+            ax2.imshow(hillshade, cmap='gray', alpha=0.8)
+            ax2.set_title("Hillshade Visualization")
+            
+            # Show the plot if show_image is True:
+            print("Displaying the plot(s)...")
+            if show_image:
+                plt.show()
 
-        # Save plot to BytesIO buffer as JPEG, tight bbox, 150 DPI:
-        print("Saving plot to BytesIO buffer...")
-        buf = io.BytesIO()
-        plt.tight_layout()
-        plt.savefig(buf, format="JPEG", bbox_inches="tight", dpi=150)
-        plt.close()
-        buf.seek(0)
-        
-        # Binary to base64 conversion:
-        print("Converting plot to base64 and computation of stats...")
-        image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-        # Calculate basic stats:
-        ot_stats = {
-            "image": image_base64,
-            "statistics": {
-                "mean": float(np.nanmean(lidar_arr)),
-                "median": float(np.nanmedian(lidar_arr)),
-                "std": float(np.nanstd(lidar_arr)),
-                "min": float(np.nanmin(lidar_arr)),
-                "max": float(np.nanmax(lidar_arr)),
-                "percentile_2": float(vmin),
-                "percentile_98": float(vmax),
-                "shape": lidar_arr.shape
-            },
-            # Some spatial metadata: coordinate reference system, and bbox info:
-            "crs": str(src.crs) if src.crs else None,
-            "bounds": list(src.bounds)
-        }
-        buf.close()
-        return ot_stats    
+            # Save plot to BytesIO buffer as JPEG, tight bbox, 150 DPI:
+            print("Saving plot to BytesIO buffer...")
+            buf = io.BytesIO()
+            plt.tight_layout()
+            plt.savefig(buf, format="JPEG", bbox_inches="tight", dpi=150)
+            plt.close()
+            buf.seek(0)
+            
+            # Binary to base64 conversion:
+            print("Converting plot to base64 and computation of stats...")
+            image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            # Calculate basic stats:
+            ot_stats = {
+                "image": image_base64,
+                "statistics": {
+                    "mean": float(np.nanmean(lidar_arr)),
+                    "median": float(np.nanmedian(lidar_arr)),
+                    "std": float(np.nanstd(lidar_arr)),
+                    "min": float(np.nanmin(lidar_arr)),
+                    "max": float(np.nanmax(lidar_arr)),
+                    "percentile_2": float(vmin),
+                    "percentile_98": float(vmax),
+                    "shape": lidar_arr.shape
+                },
+                # Some spatial metadata: coordinate reference system, and bbox info:
+                "crs": str(src.crs) if src.crs else None,
+                "bounds": list(src.bounds)
+            }
+            buf.close()
+            return ot_stats
+    finally:
+        # Clean up the temporary file
+        if os.path.exists(lidar_path):
+            os.unlink(lidar_path)
+            print(f"Temporary file {lidar_path} deleted.")    
 
 # ===============================================================================
 # Sentinel-2 FEATURE EXTRACTION: Google Earth Engine
