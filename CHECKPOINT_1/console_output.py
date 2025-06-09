@@ -8,8 +8,11 @@ from openai_integration import call_model_responses, call_openai_responses, OPEN
 # ENVIRONMENT SETUP
 # ===============================================================================
 DATASET_TYPE = os.environ.get("DATASET_TYPE", "lidar")  # 'lidar' or 'sentinel2'.
+API_TYPE = os.environ.get("API_TYPE", "openai")  # 'openai' or 'openrouter'.
 if DATASET_TYPE not in ["lidar", "sentinel2"]:
     raise ValueError("DATASET_TYPE must be 'lidar' or 'sentinel2'")
+if API_TYPE not in ["openai", "openrouter"]:
+    raise ValueError("API_TYPE must be 'openai' or 'openrouter'")
 
 # Optional: overrides default dataset types in dataset_fetching.py
 # DATASET_ID = os.environ.get("DATASET_ID")
@@ -76,9 +79,11 @@ def main():
     # Call the model (defaults to OpenRouter):
     print("\nCalling model for prompting...")
     if analysis_results:
-        #summary = call_model_responses(analysis_results, dataset_type=DATASET_TYPE, provider=OPENROUTER_PROVIDER, model=OPENROUTER_DEFAULT_MODEL)
-        summary = call_openai_responses(analysis_results, dataset_type=DATASET_TYPE, model=OPENAI_DEFAULT_MODEL)
-        print(summary)
+        if API_TYPE == "openai":
+            llm_response = call_openai_responses(analysis_results, dataset_type=DATASET_TYPE, model=OPENAI_DEFAULT_MODEL)
+        elif API_TYPE == "openrouter":
+            llm_response = call_openrouter_responses(analysis_results, dataset_type=DATASET_TYPE, model=OPENROUTER_DEFAULT_MODEL)
+        print(llm_response)
     
     #print(f"Provider: {OPENROUTER_PROVIDER}")
     #print(f"Model: {OPENROUTER_DEFAULT_MODEL}")

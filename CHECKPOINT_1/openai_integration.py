@@ -27,7 +27,7 @@ def call_model_responses(
     provider: str = OPENROUTER_PROVIDER,
     model: Optional[str] = None,
     temperature: float = 1.0,
-    max_tokens: int = 32768, # For OpenRouter model(s) for now, subject to change of course.
+    max_tokens: int = 128000, # For OpenRouter model(s) for now, subject to change of course.
     **kwargs
 ) -> str:
     """
@@ -277,7 +277,7 @@ def call_model_responses(
         return f"[Provider error] Unknown provider: {provider}"
 
 # ===============================================================================
-# BACKWARD-COMPATIBLE OPENAI FUNCTION (optional usage, easy for OpenAI users)
+# BACKWARD-COMPATIBLE API FUNCTIONS 
 # ===============================================================================
 def call_openai_responses(analysis_results: dict, dataset_type: str, model: str = OPENAI_DEFAULT_MODEL) -> str:
     """
@@ -285,3 +285,11 @@ def call_openai_responses(analysis_results: dict, dataset_type: str, model: str 
     Equivalent to call_model_responses(..., provider='openai').
     """
     return call_model_responses(analysis_results, dataset_type=dataset_type, provider=OPENAI_PROVIDER, model=model)
+
+def call_openrouter_responses(analysis_results: dict, dataset_type: str, model: str = OPENROUTER_DEFAULT_MODEL) -> str:
+    """
+    Backward-compatible: Send `analysis_results` to the OpenRouter API and get a plain-English description.
+    Equivalent to call_model_responses(..., provider='openrouter').
+    """
+    return call_model_responses(analysis_results, dataset_type=dataset_type, provider=OPENROUTER_PROVIDER, model=model)
+    
