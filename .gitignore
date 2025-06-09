@@ -5,7 +5,10 @@ __pycache__/
 # Task-Magic runtime junk
 .ai/
 .windsurf/
+.cursor/
+.vscode/
 # Secrets
 .env
 # Data + rasters
 data/
+.DS_Store
