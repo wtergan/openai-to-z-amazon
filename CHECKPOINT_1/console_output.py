@@ -2,7 +2,7 @@ import os
 from pprint import pprint
 from dataset_fetching import fetch_dataset, initialize_gee
 from feature_extraction import lidar_ot_extract_features, sentinel2_gee_extract_features
-from openai_integration import call_model_responses, OPENROUTER_PROVIDER, OPENROUTER_DEFAULT_MODEL
+from openai_integration import call_model_responses, call_openai_responses, OPENROUTER_PROVIDER, OPENROUTER_DEFAULT_MODEL, OPENAI_DEFAULT_MODEL
 
 # ===============================================================================
 # ENVIRONMENT SETUP
@@ -76,7 +76,8 @@ def main():
     # Call the model (defaults to OpenRouter):
     print("\nCalling model for prompting...")
     if analysis_results:
-        summary = call_model_responses(analysis_results, dataset_type=DATASET_TYPE, provider=OPENROUTER_PROVIDER, model=OPENROUTER_DEFAULT_MODEL)
+        #summary = call_model_responses(analysis_results, dataset_type=DATASET_TYPE, provider=OPENROUTER_PROVIDER, model=OPENROUTER_DEFAULT_MODEL)
+        summary = call_openai_responses(analysis_results, dataset_type=DATASET_TYPE, model=OPENAI_DEFAULT_MODEL)
         print(summary)
     
     #print(f"Provider: {OPENROUTER_PROVIDER}")
