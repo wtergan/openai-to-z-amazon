@@ -43,29 +43,76 @@ def call_model_responses(
             raise ValueError("OpenAI client not initialized or API key missing.")
         model_name = model or OPENAI_DEFAULT_MODEL
         
-        # Dynamic prompting scheme based on the data type (matching OpenRouter format):
+        # Dynamic prompting scheme based on the data type with enhanced vegetation analysis:
         if dataset_type == 'lidar':
             prompt_intro = ("Here are statistics and a hillshade plot derived from LiDAR elevation data. "
                         "The plot shows elevation on the left and a shaded relief view on the right.")
         else: # sentinel2
-            prompt_intro = ("Here are statistics and an RGB thumbnail from a Sentinel-2 satellite median composite. "
-                        "The stats include various spectral bands and a calculated NDVI (vegetation index).")
+            # Check what visualizations are available:
+            has_rgb = analysis_results.get("image") is not None
+            has_ndvi = analysis_results.get("ndvi_image") is not None
+            has_false_color = analysis_results.get("false_color_image") is not None
             
-        # Conditionally build the content list for the user message; input_text, with input_image if available:
+            # Enhanced prompt for multiple visualizations:
+            prompt_intro = "Here are statistics and visualizations from a Sentinel-2 L2A satellite median composite. "
+            
+            if has_rgb and has_ndvi and has_false_color:
+                prompt_intro += ("I'm providing three complementary visualizations: "
+                               "1) RGB natural color composite for general landscape features, "
+                               "2) NDVI heatmap for vegetation health assessment (brown/red = bare soil/stressed vegetation, yellow/green = healthy vegetation), "
+                               "3) False-color composite (NIR-Red-Green) for vegetation pattern analysis (red/pink = vegetation, blue = water/urban). ")
+            elif has_rgb and has_ndvi:
+                prompt_intro += ("I'm providing RGB natural color composite and NDVI heatmap for vegetation health assessment "
+                               "(brown/red = bare soil/stressed vegetation, yellow/green = healthy vegetation). ")
+            elif has_rgb and has_false_color:
+                prompt_intro += ("I'm providing RGB natural color composite and false-color composite "
+                               "(red/pink = vegetation, blue = water/urban areas). ")
+            elif has_rgb:
+                prompt_intro += "I'm providing an RGB natural color composite. "
+            
+            prompt_intro += "The statistics include various spectral bands and calculated NDVI (vegetation index)."
+            
+        # Enhanced analysis instructions for vegetation-focused analysis:
+        analysis_instructions = (
+            "Please analyze the provided visualizations and statistics. As an expert archaeologist and remote sensing analyst, "
+            "provide a comprehensive interpretation that addresses:\n\n"
+            "1. **Landscape Overview**: General terrain, land use patterns, and dominant features\n"
+            "2. **Vegetation Analysis**: Health patterns, vegetation boundaries, seasonal indicators, and stress areas\n"
+            "3. **Land Use Identification**: Agricultural areas, urban development, water bodies, and bare soil regions\n"
+            "4. **Archaeological Potential**: Areas of interest for archaeological investigation based on landscape patterns\n"
+            "5. **Environmental Conditions**: Indicators of water availability, soil conditions, and ecological health\n\n"
+            "Focus particularly on vegetation characteristics and patterns that might indicate human activity, "
+            "land management practices, or environmental changes. Describe features in plain English with specific "
+            "references to what each visualization reveals."
+        )
+            
+        # Conditionally build the content list for the user message; input_text, with input_images if available:
         user_content = [
             {
                 "type": "input_text",
                 "text": (f"{prompt_intro}\n\n"
                          f"Statistics:\n{json.dumps(analysis_results.get('statistics', {}), indent=2)}\n\n"
-                         "Please analyze the provided image and statistics. As an expert archaeologist and remote sensing analyst, "
-                         "describe the key features, patterns, and anomalies in the landscape in plain English.")
+                         f"{analysis_instructions}")
             }
         ]
 
+        # Add all available images:
         if analysis_results.get("image"):
             user_content.append({
                 "type": "input_image",
                 "image_url": f"data:image/jpeg;base64,{analysis_results['image']}"
+            })
+            
+        if analysis_results.get("ndvi_image"):
+            user_content.append({
+                "type": "input_image", 
+                "image_url": f"data:image/jpeg;base64,{analysis_results['ndvi_image']}"
+            })
+            
+        if analysis_results.get("false_color_image"):
+            user_content.append({
+                "type": "input_image",
+                "image_url": f"data:image/jpeg;base64,{analysis_results['false_color_image']}"
             })
         
         # Instructions for system role/behavior; for response API, this replaces the traditional "system" message role:
@@ -113,30 +160,81 @@ def call_model_responses(
             #"X-Title": "OpenAI-to-Z Challenge"  # Optional
         }
 
-        # Dynamic prompting scheme based on the data type:
+        # Dynamic prompting scheme based on the data type with enhanced vegetation analysis:
         if dataset_type == 'lidar':
             prompt_intro = ("Here are statistics and a hillshade plot derived from LiDAR elevation data. "
                         "The plot shows elevation on the left and a shaded relief view on the right.")
         else: # sentinel2
-            prompt_intro = ("Here are statistics and an RGB thumbnail from a Sentinel-2 satellite median composite. "
-                        "The stats include various spectral bands and a calculated NDVI (vegetation index).")
+            # Check what visualizations are available
+            has_rgb = analysis_results.get("image") is not None
+            has_ndvi = analysis_results.get("ndvi_image") is not None
+            has_false_color = analysis_results.get("false_color_image") is not None
             
-        # Conditionally build the content list for the user message; text input, with image_url if available:
+            # Enhanced prompt for multiple visualizations
+            prompt_intro = "Here are statistics and visualizations from a Sentinel-2 satellite median composite. "
+            
+            if has_rgb and has_ndvi and has_false_color:
+                prompt_intro += ("I'm providing three complementary visualizations: "
+                               "1) RGB natural color composite for general landscape features, "
+                               "2) NDVI heatmap for vegetation health assessment (brown/red = bare soil/stressed vegetation, yellow/green = healthy vegetation), "
+                               "3) False-color composite (NIR-Red-Green) for vegetation pattern analysis (red/pink = vegetation, blue = water/urban). ")
+            elif has_rgb and has_ndvi:
+                prompt_intro += ("I'm providing RGB natural color composite and NDVI heatmap for vegetation health assessment "
+                               "(brown/red = bare soil/stressed vegetation, yellow/green = healthy vegetation). ")
+            elif has_rgb and has_false_color:
+                prompt_intro += ("I'm providing RGB natural color composite and false-color composite "
+                               "(red/pink = vegetation, blue = water/urban areas). ")
+            elif has_rgb:
+                prompt_intro += "I'm providing an RGB natural color composite. "
+            
+            prompt_intro += "The statistics include various spectral bands and calculated NDVI (vegetation index)."
+            
+        # Enhanced analysis instructions for vegetation-focused analysis
+        analysis_instructions = (
+            "Please analyze the provided visualizations and statistics. As an expert archaeologist and remote sensing analyst, "
+            "provide a comprehensive interpretation that addresses:\n\n"
+            "1. **Landscape Overview**: General terrain, land use patterns, and dominant features\n"
+            "2. **Vegetation Analysis**: Health patterns, vegetation boundaries, seasonal indicators, and stress areas\n"
+            "3. **Land Use Identification**: Agricultural areas, urban development, water bodies, and bare soil regions\n"
+            "4. **Archaeological Potential**: Areas of interest for archaeological investigation based on landscape patterns\n"
+            "5. **Environmental Conditions**: Indicators of water availability, soil conditions, and ecological health\n\n"
+            "Focus particularly on vegetation characteristics and patterns that might indicate human activity, "
+            "land management practices, or environmental changes. Describe features in plain English with specific "
+            "references to what each visualization reveals."
+        )
+            
+        # Conditionally build the content list for the user message; text input, with image_urls if available:
         user_content = [
             {
                 "type": "text",
                 "text": (f"{prompt_intro}\n\n"
                          f"Statistics:\n{json.dumps(analysis_results.get('statistics', {}), indent=2)}\n\n"
-                         "Please analyze the provided image and statistics. As an expert archaeologist and remote sensing analyst, "
-                         "describe the key features, patterns, and anomalies in the landscape in plain English.")
+                         f"{analysis_instructions}")
             }
         ]
 
+        # Add all available images
         if analysis_results.get("image"):
             user_content.append({
                 "type": "image_url",
                 "image_url": {
                     "url": f"data:image/jpeg;base64,{analysis_results['image']}"
+                }
+            })
+            
+        if analysis_results.get("ndvi_image"):
+            user_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{analysis_results['ndvi_image']}"
+                }
+            })
+            
+        if analysis_results.get("false_color_image"):
+            user_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{analysis_results['false_color_image']}"
                 }
             })
 
