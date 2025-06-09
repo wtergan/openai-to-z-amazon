@@ -44,7 +44,7 @@ def main():
     analysis_results = None
     if DATASET_TYPE == "lidar":
         if data and isinstance(data, str):
-            print(f"Extracting features and statistics from the LiDAR data from {data}")
+            print(f"Extracting features and statistics from the LiDAR data from {data}\n\n")
             analysis_results = lidar_ot_extract_features(data)
             print(f"Successfully extracted features and statistics from the LiDAR data from {data}")
             stats_to_display = {k: v for k, v in analysis_results.items() if k != 'image'}
@@ -76,7 +76,7 @@ def main():
     # Call the model (defaults to OpenRouter):
     print("\nCalling model for prompting...")
     if analysis_results:
-        summary = call_model_responses(analysis_results, provider=OPENROUTER_PROVIDER, model=OPENROUTER_DEFAULT_MODEL)
+        summary = call_model_responses(analysis_results, dataset_type=DATASET_TYPE, provider=OPENROUTER_PROVIDER, model=OPENROUTER_DEFAULT_MODEL)
         print(summary)
     
     #print(f"Provider: {OPENROUTER_PROVIDER}")

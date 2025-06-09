@@ -19,10 +19,11 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ===============================================================================
-# API MODEL CALLING
+# API MODEL USAGE
 # ===============================================================================
 def call_model_responses(
     analysis_results: dict,
+    dataset_type: str,
     provider: str = OPENROUTER_PROVIDER,
     model: Optional[str] = None,
     temperature: float = 1.0,
@@ -30,7 +31,7 @@ def call_model_responses(
     **kwargs
 ) -> str:
     """
-    Sending image and stats to the selected provider (OpenAI or OpenRouter) and get a plain-English description.
+    Sending analysis results to the selected provider (OpenAI or OpenRouter) and returns a plain-English description.
     Defaults to OpenRouter (for now).
     """
     if provider not in [OPENAI_PROVIDER, OPENROUTER_PROVIDER]:
@@ -75,45 +76,57 @@ def call_model_responses(
             #"HTTP-Referer": "https://github.com/yourusername/your-repo",  # Optional
             #"X-Title": "OpenAI-to-Z Challenge"  # Optional
         }
+
+        # Dynamic prompting scheme based on the data type:
+        if dataset_type == 'lidar':
+            prompt_intro = ("Here are statistics and a hillshade plot derived from LiDAR elevation data. "
+                        "The plot shows elevation on the left and a shaded relief view on the right.")
+        else: # sentinel2
+            prompt_intro = ("Here are statistics and an RGB thumbnail from a Sentinel-2 satellite median composite. "
+                        "The stats include various spectral bands and a calculated NDVI (vegetation index).")
+            
+        # Conditionally build the content list for the user message; text input, with image(s) if available:
+        user_content = [
+            {
+                "type": "text",
+                "text": (f"{prompt_intro}\n\n"
+                         f"Statistics:\n{json.dumps(analysis_results.get('statistics', {}), indent=2)}\n\n"
+                         "Please analyze the provided image and statistics. As an expert archaeologist and remote sensing analyst, "
+                         "describe the key features, patterns, and anomalies in the landscape in plain English.")
+            }
+        ]
+
+        if analysis_results.get("image"):
+            user_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{analysis_results['image']}"
+                }
+            })
+
         messages = [
             {
                 "role": "system",
-                "content": ("You are an archaeologist and remote sensing analyst. Analyze the provided data (image and/or stats), "
-                            "then describe the surface features and interpret the statistics in plain English." )
+                "content": ("You are an expert archaeologist and remote sensing analyst. Your task is to interpret geospatial data. "
+                            "You provide clear, insightful, and concise interpretations based on the data provided.")
             },
             {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": ("Here are the basic stats about this LiDAR elevation data: "
-                                 f"{json.dumps(analysis_results['statistics'], indent=2)}. "
-                                 "Please analyze the elevation plot and describe the surface features and interpret the statistics in plain English.")
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{analysis_results['image']}"
-                        }
-                    }
-                ]
+                "content": user_content
             }
         ]
+
         data = {
             "model": model_name,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            **kwargs
         }
+
         try:
-            print("Sending request to OpenRouter API...")
-            resp = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=data
-            )
-            print("Response received from OpenRouter API.", resp.status_code)
+            print(f"Sending request to OpenRouter API for model: {model_name}...")
+            resp = requests.post("https://openrouter.ai/api/v1/chat/completions",headers=headers, json=data, timeout=120)
+            print(f"Response received from OpenRouter API: {resp.status_code}")
             resp_json = resp.json()
             if resp.status_code != 200:
                 # Return the full error message from the API if available:

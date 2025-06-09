@@ -9,13 +9,14 @@ import urllib.request
 from PIL import Image
 from matplotlib.colors import LightSource
 import os
+from typing import Optional, Dict, Any
 
 # ===============================================================================
 # LiDAR FEATURE EXTRACTION: OpenTopography API
 # ===============================================================================
-def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> dict:
+def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> Optional[Dict[str, Any]]:
     """
-    Generate and display a plot of LiDAR data along with some stats.
+    Generate and display a plots of LiDAR GeoTIFF data along with some stats.
     Returns a dict containing the plot as a BytesIO obj, and the stats.
     Cleans up the temporary lidar_path file upon completion or error.
     """
@@ -25,12 +26,16 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> dict:
             lidar_arr = src.read(1).astype(np.float32)
             if src.nodata is not None:
                 lidar_arr = np.where(lidar_arr == src.nodata, np.nan, lidar_arr)
+            if np.all(np.isnan(lidar_arr)):
+                print("Error: LiDAR data is empty or all NoData values.")
+                return None
             
             # Usage of 2-98 percentiles for avoiding outliers that may affect color mapping:
             vmin, vmax = np.nanpercentile(lidar_arr, [2, 98])
 
             # Figure with subplots:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+            fig.suptitle("LiDAR Data Analysis", fontsize=16)
 
             # Main elevation plot:
             print("Generating LiDAR elevation plot...")
@@ -41,7 +46,7 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> dict:
             # Hillshade for better terrain visualization, using LightSource for azimuth and altitude:
             print("Generating LiDAR hillshade...")
             ls = LightSource(azdeg=315, altdeg=45)
-            hillshade = ls.hillshade(lidar_arr, vert_exag=1, dx=1, dy=1, fraction=1.0)
+            hillshade = ls.hillshade(lidar_arr, vert_exag=1, dx=src.res[0], dy=src.res[1], fraction=1.0)
             ax2.imshow(hillshade, cmap='gray', alpha=0.8)
             ax2.set_title("Hillshade Visualization")
             
@@ -61,7 +66,8 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> dict:
             # Binary to base64 conversion:
             print("Converting plot to base64 and computation of stats...")
             image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-            # Calculate basic stats:
+
+            # Compiling results:
             ot_stats = {
                 "image": image_base64,
                 "statistics": {
@@ -75,13 +81,16 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> dict:
                     "shape": lidar_arr.shape
                 },
                 # Some spatial metadata: coordinate reference system, and bbox info:
-                "crs": str(src.crs) if src.crs else None,
+                "crs": str(src.crs) if src.crs else "N/A",
                 "bounds": list(src.bounds)
             }
             buf.close()
             return ot_stats
+    except Exception as e:
+        print(f"Error processing LiDAR data: {e}")
+        return None
     finally:
-        # Clean up the temporary file
+        # Clean up the temporary file:
         if os.path.exists(lidar_path):
             os.unlink(lidar_path)
             print(f"Temporary file {lidar_path} deleted.")    
@@ -94,7 +103,7 @@ def sentinel2_gee_extract_features(
     scale: int = 30, # Resolution for reduceRegion, 10/20/30/60m for S2 bands.
     thumb_dimensions: str = '768x768', # Thumbnail dimensions.
     show_image: bool = True
-) -> dict:
+) -> Optional[Dict[str, Any]]:
     """
     Computing stats and generating a thumbnail for a Sentinel-2 GEE Image.
     Expects a dictionary from fetch_sentinel2_gee_data.
@@ -224,6 +233,7 @@ def sentinel2_gee_extract_features(
     except Exception as e_thumb:
         print(f"General error generating/downloading thumbnail: {e_thumb}")
 
+    # Compiling results:
     return {
         "image": image_base64,
         "statistics": all_stats,

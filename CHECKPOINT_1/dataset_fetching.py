@@ -7,6 +7,7 @@ import urllib.request
 import io
 from PIL import Image
 from dotenv import load_dotenv
+from typing import Optional, Dict, Any
 
 # ===============================================================================
 # ENVIRONMENT SETUP
@@ -59,7 +60,7 @@ S2_DEFAULT_END_DATE = "2023-12-31"
 # LiDAR PARAMETERS: OpenTopography API
 # ===============================================================================
 def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, east: float, 
-    api_key=OT_API_KEY) -> str:
+    api_key=OT_API_KEY) -> Optional[str]:
     """
     Download a small LiDAR .tif file from OpenTopography API.
     Takes in the available global raster dataset type (demtype), the bbox coordinates,
@@ -75,13 +76,17 @@ def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, e
         "outputFormat": "GTiff",
         "API_Key": api_key
     }
-    tf = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
-    resp = requests.get(url, params=params, timeout=60)
-    resp.raise_for_status()
-    tf.write(resp.content)
-    print(f"Downloaded {tf.name}")
-    tf.close()
-    return tf.name
+    try:
+        tf = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+        resp = requests.get(url, params=params, timeout=120)
+        resp.raise_for_status()
+        tf.write(resp.content)
+        tf.close()
+        print(f"LiDAR data successfully downloaded to temporary file: {tf.name}")
+        return tf.name
+    except Exception as e:
+        print(f"Error downloading LiDAR data: {e}")
+        return None
 
 # ===============================================================================
 # Sentinel-2 PARAMETERS: Google Earth Engine
@@ -89,14 +94,15 @@ def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, e
 def cloud_mask_s2_sr(image: ee.Image) -> ee.Image:
     """Cloud mask creation for Sentinel-2 Surface Reflectance using SCL band."""
     scl = image.select('SCL')
+    # Mask out cloud shadow, medium/high probability cloud, and cirrus, saturated/defective pixels:
     clear_mask = scl.neq(1).And(scl.neq(3)).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
     valid_data_mask = image.select('B2').gt(0)
-    return image.updateMask(clear_mask.And(valid_data_mask)).divide(10000)
+    return image.updateMask(clear_mask.And(valid_data_mask)).divide(10000) # Scale data to 0-1 range.
 
 def fetch_sentinel2_gee_data(
     south: float, north: float, west: float, east: float, start_date: str, end_date: str,
     max_cloud_percentage: float = 20.0
-) -> dict:
+) -> Optional[Dict[str, Any]]:
     """
     Fetching Sentinel-2 L2A median composite from GEE for a given bbox and date range.
     Returns a dictionary containing the GEE image object and ROI.
