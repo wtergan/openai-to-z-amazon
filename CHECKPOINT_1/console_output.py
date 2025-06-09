@@ -47,7 +47,7 @@ def main():
             print(f"Extracting features and statistics from the LiDAR data from {data}\n\n")
             analysis_results = lidar_ot_extract_features(data)
             print(f"Successfully extracted features and statistics from the LiDAR data from {data}")
-            stats_to_display = {k: v for k, v in analysis_results.items() if k != 'image'}
+            stats_to_display = {k: v for k, v in analysis_results.items() if k not in ['image', 'ndvi_image', 'false_color_image']}
             pprint(stats_to_display)
         else:
             print(f"Error: LiDAR data file path is invalid or not fetched: {data}\n")
@@ -57,7 +57,7 @@ def main():
             print(f"Extracting features and statistics from the Sentinel-2 data from {data}")
             analysis_results = sentinel2_gee_extract_features(data)
             print(f"Successfully extracted features and statistics from the Sentinel-2 data from {data}\n")
-            stats_to_display = {k: v for k, v in analysis_results.items() if k != 'image'}
+            stats_to_display = {k: v for k, v in analysis_results.items() if k not in ['image', 'ndvi_image', 'false_color_image']}
             pprint(stats_to_display)
         elif data and isinstance(data, dict) and data.get("error"):
             print(f"Error: {data['error']}")
