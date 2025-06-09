@@ -105,15 +105,25 @@ def sentinel2_gee_extract_features(
     show_image: bool = True
 ) -> Optional[Dict[str, Any]]:
     """
-    Computing stats and generating a thumbnail for a Sentinel-2 GEE Image.
-    Expects a dictionary from fetch_sentinel2_gee_data.
-    Returns a dict containing the plot as base64, as well as pertinent stats.
+    Computing stats and generating multiple visualizations for a Sentinel-2 GEE Image.
+    Returns a dict containing RGB composite, NDVI heatmap, false-color composite as base64,
+    along with comprehensive statistics and metadata for AI analysis.
+    
+    Returns:
+        Dict containing:
+        - 'rgb_image': RGB composite (base64) - for backward compatibility
+        - 'ndvi_image': NDVI heatmap (base64) - vegetation health visualization
+        - 'false_color_image': False-color composite (base64) - vegetation pattern analysis
+        - 'image_metadata': Descriptions and context for each visualization type
+        - 'statistics': Band and NDVI statistics
+        - 'roi_bounds': Geographic boundaries
+        - 'gee_image_details': Processing details and availability summary
     """
     if not gee_data or not gee_data.get("image"):
         error_msg = gee_data.get("error", "GEE image not provided or invalid.")
         print(f"Error: {error_msg}")
         return {
-            "image": None,
+            "rgb_image": None,
             "statistics": {"error": error_msg},
             "roi_bounds": gee_data.get("roi_bounds"),
             "gee_image_details": "No image processed."
@@ -146,7 +156,7 @@ def sentinel2_gee_extract_features(
     except ee.EEException as e:
         print(f"GEE Error calculating band stats: {e}")
         return {
-            "image": None, 
+            "rgb_image": None, 
             "statistics": {"error": f"GEE band stats error: {e}"},
             "roi_bounds": roi_bounds,
             "gee_image_details": "Failed during band statistics."
@@ -154,13 +164,14 @@ def sentinel2_gee_extract_features(
     except Exception as e_gen:
         print(f"General Error calculating band stats: {e_gen}")
         return {
-            "image": None, 
+            "rgb_image": None, 
             "statistics": {"error": f"General band stats error: {e_gen}"},
             "roi_bounds": roi_bounds,
             "gee_image_details": "Failed during band statistics."
         }
 
-    # Calculating NDVI and its stats:
+    # Calculating NDVI (Normalized Difference Vegetation Index) and its stats:
+    # NDVI is computed as (NIR - Red) / (NIR + Red), where NIR=near-infrared, band 8, and Red is band 4.
     ndvi_stats = {}
     try:
         print("Computing Normalized Difference Vegetation Index (NDVI)...")
@@ -180,7 +191,7 @@ def sentinel2_gee_extract_features(
     except Exception as e_gen:
         print(f"General Error calculating NDVI stats: {e_gen}")
 
-    # Merging the stats from all bands and NDVI:
+    # Merging the stats from all bands and NDVI into a single dict for usage:
     all_stats = {}
     for band in selected_bands:
         for stat_key, reducer_key_part in {
@@ -190,11 +201,17 @@ def sentinel2_gee_extract_features(
             all_stats[f"{band}_{stat_key}"] = band_stats.get(gee_key)
     all_stats.update(ndvi_stats)
 
-    # Generating the RGB thumbnail for LLM processing:
-    image_base64 = None
-    pil_image = None
+    # Initializing variables for the image thumbnails:
+    rgb_image_base64 = None
+    ndvi_image_base64 = None
+    false_color_image_base64 = None
+    rgb_pil_image = None
+    ndvi_pil_image = None
+    false_color_pil_image = None
+
+    # Generating the RGB composite thumbnail for LLM processing:
     try:
-        print("Generating RGB thumbnail...")
+        print("Generating RGB composite thumbnail...")
         # Vis params for 0-1 scaled reflectance. Common S2 vis is 0-0.3 range.
         rgb_vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0.0, 'max': 0.3, 'gamma': 1.4}
         region_payload = roi.getInfo()['coordinates'] if hasattr(roi, 'getInfo') else roi
@@ -205,44 +222,164 @@ def sentinel2_gee_extract_features(
         })
 
         # Downloading and processing the thumbnail; binary to base64 conversion:
-        print(f"RGB thumbnail URL (first 100 chars): {rgb_thumbnail_url[:100]}...")
+        print(f"RGB composite thumbnail URL (first 100 chars): {rgb_thumbnail_url[:100]}...")
         with urllib.request.urlopen(rgb_thumbnail_url, timeout=60) as response:
             img_data = response.read()
-        pil_image = Image.open(io.BytesIO(img_data))
+        rgb_pil_image = Image.open(io.BytesIO(img_data))
         buf = io.BytesIO()
-        pil_image.save(buf, format="JPEG")
+        rgb_pil_image.save(buf, format="JPEG")
         buf.seek(0)
-        image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        rgb_image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
         buf.close()
-        print("RGB thumbnail generated and encoded.")
-
-        # Displaying the thumbnail image if show_image is True:
-        if show_image and pil_image:
-            print("Displaying S2 thumbnail...")
-            try:
-                pil_image.show() # Usage of local default image viewer
-            except Exception as e_show:
-                print(f"Could not display the thumbnail image using pil_image.show(): {e_show}")
-                print("Consider saving it to a file instead, if you need to view it.")
-
+        print("RGB composite thumbnail generated and encoded.")
 
     except ee.EEException as e:
-        print(f"GEE Error generating/downloading thumbnail: {e}")
+        print(f"GEE Error generating RGB composite thumbnail: {e}")
     except urllib.error.URLError as e_url:
-        print(f"URL Error downloading thumbnail: {e_url}")
+        print(f"URL Error downloading RGB composite thumbnail: {e_url}")
     except Exception as e_thumb:
-        print(f"General error generating/downloading thumbnail: {e_thumb}")
+        print(f"General error generating RGB composite thumbnail: {e_thumb}")
 
-    # Compiling results:
+    # Generating NDVI heatmap visualization:
+    try:
+        print("Generating NDVI heatmap visualization...")
+        # NDVI visualization parameters: red-yellow-green scale for vegetation health
+        # Green/yellow for healthy vegetation (0.3-1.0), red/brown for bare soil/stress (-1.0-0.3)
+        ndvi_vis_params = {
+            'bands': ['NDVI'], 
+            'min': -0.2, 
+            'max': 0.8, 
+            'palette': ['8B4513', 'CD853F', 'DEB887', 'F0E68C', 'ADFF2F', '32CD32', '228B22']  # Brown to green
+        }
+        
+        ndvi_thumbnail_url = ndvi_image.visualize(**ndvi_vis_params).getThumbURL({
+            'region': region_payload,
+            'dimensions': thumb_dimensions,
+            'format': 'jpg'
+        })
+        
+        print(f"NDVI thumbnail URL (first 100 chars): {ndvi_thumbnail_url[:100]}...")
+        with urllib.request.urlopen(ndvi_thumbnail_url, timeout=60) as response:
+            ndvi_img_data = response.read()
+        ndvi_pil_image = Image.open(io.BytesIO(ndvi_img_data))
+        ndvi_buf = io.BytesIO()
+        ndvi_pil_image.save(ndvi_buf, format="JPEG")
+        ndvi_buf.seek(0)
+        ndvi_image_base64 = base64.b64encode(ndvi_buf.getvalue()).decode('utf-8')
+        ndvi_buf.close()
+        print("NDVI heatmap generated and encoded.")
+        
+    except ee.EEException as e:
+        print(f"GEE Error generating NDVI heatmap: {e}")
+        ndvi_image_base64 = None
+    except urllib.error.URLError as e_url:
+        print(f"URL Error downloading NDVI heatmap: {e_url}")
+        ndvi_image_base64 = None
+    except Exception as e_ndvi:
+        print(f"General error generating NDVI heatmap: {e_ndvi}")
+        ndvi_image_base64 = None
+
+    # Generating false-color composite (NIR-Red-Green):
+    try:
+        print("Generating false-color composite (NIR-Red-Green)...")
+        # False-color visualization: NIR->Red, Red->Green, Green->Blue
+        # Vegetation appears red/pink, water appears blue/black, urban appears cyan/blue
+        false_color_vis_params = {
+            'bands': ['B8', 'B4', 'B3'],  # NIR, Red, Green mapped to RGB
+            'min': 0.0, 
+            'max': 0.3, 
+            'gamma': 1.2
+        }
+        
+        false_color_thumbnail_url = image.visualize(**false_color_vis_params).getThumbURL({
+            'region': region_payload,
+            'dimensions': thumb_dimensions,
+            'format': 'jpg'
+        })
+        
+        print(f"False-color thumbnail URL (first 100 chars): {false_color_thumbnail_url[:100]}...")
+        with urllib.request.urlopen(false_color_thumbnail_url, timeout=60) as response:
+            false_color_img_data = response.read()
+        false_color_pil_image = Image.open(io.BytesIO(false_color_img_data))
+        false_color_buf = io.BytesIO()
+        false_color_pil_image.save(false_color_buf, format="JPEG")
+        false_color_buf.seek(0)
+        false_color_image_base64 = base64.b64encode(false_color_buf.getvalue()).decode('utf-8')
+        false_color_buf.close()
+        print("False-color composite generated and encoded.")
+        
+    except ee.EEException as e:
+        print(f"GEE Error generating false-color composite: {e}")
+        false_color_image_base64 = None
+    except urllib.error.URLError as e_url:
+        print(f"URL Error downloading false-color composite: {e_url}")
+        false_color_image_base64 = None
+    except Exception as e_fc:
+        print(f"General error generating false-color composite: {e_fc}")
+        false_color_image_base64 = None
+
+    # Displaying the images if show_image is True. Usage of local default image viewer:
+    if show_image:
+        if rgb_pil_image:
+            print("Displaying RGB thumbnail...")
+            try:
+                rgb_pil_image.show() 
+            except Exception as e_show:
+                print(f"Could not display RGB thumbnail: {e_show}")
+        
+        if ndvi_pil_image:
+            print("Displaying NDVI heatmap...")
+            try:
+                ndvi_pil_image.show()
+            except Exception as e_show:
+                print(f"Could not display NDVI heatmap: {e_show}")
+        
+        if false_color_pil_image:
+            print("Displaying false-color composite...")
+            try:
+                false_color_pil_image.show()
+            except Exception as e_show:
+                print(f"Could not display false-color composite: {e_show}")
+
+    # Compiling results with enhanced data structure... base64 images, metadata, stats, etc.
     return {
-        "image": image_base64,
+        "image": rgb_image_base64,        
+        "ndvi_image": ndvi_image_base64,
+        "false_color_image": false_color_image_base64, # For backward compatibility.
+        
+        # Enhanced metadata for AI processing:
+        "image_metadata": {
+            "rgb_composite": {
+                "description": "Natural color composite using Red, Green, Blue bands",
+                "bands": "B4 (Red), B3 (Green), B2 (Blue)",
+                "purpose": "General landscape features and natural color interpretation"
+            },
+            "ndvi_heatmap": {
+                "description": "NDVI vegetation health heatmap with color mapping",
+                "color_mapping": "Brown/Red = bare soil/stressed vegetation (-0.2 to 0.3), Yellow/Green = healthy vegetation (0.3 to 0.8)",
+                "purpose": "Vegetation health assessment and stress identification",
+                "available": ndvi_image_base64 is not None
+            },
+            "false_color_composite": {
+                "description": "False-color composite highlighting vegetation patterns",
+                "bands": "B8 (NIR->Red), B4 (Red->Green), B3 (Green->Blue)",
+                "interpretation": "Red/Pink = vegetation, Blue/Black = water, Cyan/Blue = urban/bare soil",
+                "purpose": "Vegetation boundary detection and pattern analysis",
+                "available": false_color_image_base64 is not None
+            }
+        },
+        
+        # Existing fields:
         "statistics": all_stats,
         "roi_bounds": roi_bounds,
         "gee_image_details": (
             f"Median composite from COPERNICUS/S2_SR_HARMONIZED "
             f"({gee_data.get('start_date')} to {gee_data.get('end_date')}), "
             f"{gee_data.get('count')} images processed. "
-            f"Stats scale: {scale}m. Thumb: {thumb_dimensions}."
+            f"Stats scale: {scale}m. Thumb: {thumb_dimensions}. "
+            f"Visualizations: RGB={'Present' if rgb_image_base64 else 'Absent'}, "
+            f"NDVI={'Present' if ndvi_image_base64 else 'Absent'}, "
+            f"False-color={'Present' if false_color_image_base64 else 'Absent'}."
         )
     }
 
