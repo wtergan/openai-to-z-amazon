@@ -3,7 +3,7 @@ import json
 import requests
 from typing import Dict, Optional
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 # ===============================================================================
 # OpenAI/ OpenRouter ENVIRONMENT SETUP
@@ -42,24 +42,60 @@ def call_model_responses(
         if client is None:
             raise ValueError("OpenAI client not initialized or API key missing.")
         model_name = model or OPENAI_DEFAULT_MODEL
-        instructions = "You are an archaeologist and remote sensing analyst. Analyze the provided data (image and/or stats), then describe the surface features and interpret the statistics in plain English."
+        
+        # Dynamic prompting scheme based on the data type (matching OpenRouter format):
+        if dataset_type == 'lidar':
+            prompt_intro = ("Here are statistics and a hillshade plot derived from LiDAR elevation data. "
+                        "The plot shows elevation on the left and a shaded relief view on the right.")
+        else: # sentinel2
+            prompt_intro = ("Here are statistics and an RGB thumbnail from a Sentinel-2 satellite median composite. "
+                        "The stats include various spectral bands and a calculated NDVI (vegetation index).")
+            
+        # Conditionally build the content list for the user message; input_text, with input_image if available:
+        user_content = [
+            {
+                "type": "input_text",
+                "text": (f"{prompt_intro}\n\n"
+                         f"Statistics:\n{json.dumps(analysis_results.get('statistics', {}), indent=2)}\n\n"
+                         "Please analyze the provided image and statistics. As an expert archaeologist and remote sensing analyst, "
+                         "describe the key features, patterns, and anomalies in the landscape in plain English.")
+            }
+        ]
+
+        if analysis_results.get("image"):
+            user_content.append({
+                "type": "input_image",
+                "image_url": f"data:image/jpeg;base64,{analysis_results['image']}"
+            })
+        
+        # Instructions for system role/behavior; for response API, this replaces the traditional "system" message role:
+        instructions = ("You are an expert archaeologist and remote sensing analyst. Your task is to interpret geospatial data. "
+                       "You provide clear, insightful, and concise interpretations based on the data provided.")
+        
         user_message = {
             "role": "user",
-            "content": (
-                f"Here are basic stats: {json.dumps(analysis_results['statistics'], indent=2)}.\n"
-                "Describe the surface features and interpret the statistics in plain English."
-            ),
+            "content": user_content
         }
+        
         try:
+            print(f"Sending request to OpenAI Responses API for model: {model_name}...")
             response = client.responses.create(
                 model=model_name,
                 instructions=instructions,
                 input=[user_message],
                 temperature=temperature,
-                max_tokens=max_tokens,
+                max_output_tokens=max_tokens,
                 **kwargs
             )
+            print(f"Response received from OpenAI Responses API")
+            if not hasattr(response, 'output_text') or response.output_text is None:
+                return f"[OpenAI API error] Unexpected response format: {response}"
+            if hasattr(response, 'usage'):
+                print(f"OpenAI API usage: {response.usage}")
             return response.output_text.strip()
+        except OpenAIError as e:
+            # This is a more specific error type for OpenAI API errors:
+            return f"[OpenAI API error] {str(e)}"
         except Exception as e:
             return f"[OpenAI API error] {str(e)}"
 
@@ -85,7 +121,7 @@ def call_model_responses(
             prompt_intro = ("Here are statistics and an RGB thumbnail from a Sentinel-2 satellite median composite. "
                         "The stats include various spectral bands and a calculated NDVI (vegetation index).")
             
-        # Conditionally build the content list for the user message; text input, with image(s) if available:
+        # Conditionally build the content list for the user message; text input, with image_url if available:
         user_content = [
             {
                 "type": "text",
@@ -145,9 +181,9 @@ def call_model_responses(
 # ===============================================================================
 # BACKWARD-COMPATIBLE OPENAI FUNCTION (optional usage, easy for OpenAI users)
 # ===============================================================================
-def call_openai_responses(analysis_results: dict, model: str = OPENAI_DEFAULT_MODEL) -> str:
+def call_openai_responses(analysis_results: dict, dataset_type: str, model: str = OPENAI_DEFAULT_MODEL) -> str:
     """
     Backward-compatible: Send `analysis_results` to the OpenAI Responses API and get a plain-English description.
     Equivalent to call_model_responses(..., provider='openai').
     """
-    return call_model_responses(analysis_results, provider=OPENAI_PROVIDER, model=model)
+    return call_model_responses(analysis_results, dataset_type=dataset_type, provider=OPENAI_PROVIDER, model=model)
