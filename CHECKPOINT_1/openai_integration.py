@@ -279,17 +279,17 @@ def call_model_responses(
 # ===============================================================================
 # BACKWARD-COMPATIBLE API FUNCTIONS 
 # ===============================================================================
-def call_openai_responses(analysis_results: dict, dataset_type: str, model: str = OPENAI_DEFAULT_MODEL) -> str:
+def call_openai_responses(analysis_results: dict, dataset_type: str, provider: str = OPENAI_PROVIDER, model: str = OPENAI_DEFAULT_MODEL) -> str:
     """
     Backward-compatible: Send `analysis_results` to the OpenAI Responses API and get a plain-English description.
     Equivalent to call_model_responses(..., provider='openai').
     """
-    return call_model_responses(analysis_results, dataset_type=dataset_type, provider=OPENAI_PROVIDER, model=model)
+    return call_model_responses(analysis_results, dataset_type=dataset_type, provider=provider, model=model)
 
-def call_openrouter_responses(analysis_results: dict, dataset_type: str, model: str = OPENROUTER_DEFAULT_MODEL) -> str:
+def call_openrouter_responses(analysis_results: dict, dataset_type: str, provider: str = OPENROUTER_PROVIDER, model: str = OPENROUTER_DEFAULT_MODEL) -> str:
     """
     Backward-compatible: Send `analysis_results` to the OpenRouter API and get a plain-English description.
     Equivalent to call_model_responses(..., provider='openrouter').
     """
-    return call_model_responses(analysis_results, dataset_type=dataset_type, provider=OPENROUTER_PROVIDER, model=model)
+    return call_model_responses(analysis_results, dataset_type=dataset_type, provider=provider, model=model)
     
