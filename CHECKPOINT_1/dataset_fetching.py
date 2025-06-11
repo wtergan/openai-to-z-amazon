@@ -26,9 +26,9 @@ def initialize_gee():
     try:
         print("Attempting GEE initialization...")
         if GEE_PROJECT_ID:
-            ee.Initialize(project=GEE_PROJECT_ID, opt_url='https://earthengine-highvolume.googleapis.com')
+            ee.Initialize(project=GEE_PROJECT_ID, opt_url='https://earthengine.googleapis.com')
         else:
-            ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com')
+            ee.Initialize(opt_url='https://earthengine.googleapis.com')
         print("GEE initialized successfully (using existing credentials or default project).")
         gee_initialized_successfully = True
     except ee.EEException as e_init:
@@ -36,9 +36,9 @@ def initialize_gee():
         try:
             ee.Authenticate() # This will open a browser tab for auth code.
             if GEE_PROJECT_ID:
-                ee.Initialize(project=GEE_PROJECT_ID, opt_url='https://earthengine-highvolume.googleapis.com')
+                ee.Initialize(project=GEE_PROJECT_ID, opt_url='https://earthengine.googleapis.com')
             else:
-                ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com')
+                ee.Initialize(opt_url='https://earthengine.googleapis.com')
             print("GEE authenticated and initialized successfully.")
             gee_initialized_successfully = True
         except Exception as e_auth:
