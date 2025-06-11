@@ -1,6 +1,8 @@
-laspy                     2.5.4           py313h249b317_1    conda-forge
-openai                    1.82.1             pyhd8ed1ab_0    conda-forge
-python-dotenv             1.1.0              pyh29332c3_1    conda-forge
-rasterio                  1.4.3           py313h9a45b90_1    conda-forge
-requests                  2.32.3             pyhd8ed1ab_0    conda-forge
-matplotlib                3.10.3           py313h249b317_1    conda-forge
+laspy>=2.5.4
+openai>=1.82.1
+python-dotenv>=1.1.0
+rasterio>=1.4.3
+requests>=2.32.3
+matplotlib>=3.10.3
+earthengine-api>=1.5.18
+urllib3>=2.4.0
