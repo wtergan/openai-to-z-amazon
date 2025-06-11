@@ -55,7 +55,10 @@ This project fetches a sample remote-sensing dataset (LiDAR or Sentinel-2), extr
    Create a `.env` file in the CHECKPOINT_1 directory with your API keys:
    ```
    OPENAI_API_KEY=your_openai_api_key_here
-   # Add any other required API keys
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
+   OT_API_KEY=your_ot_api_key_here
+   GEE_PROJECT_ID=your_ee_project_id_here
+   ..........
    ```
 
 ## Usage
