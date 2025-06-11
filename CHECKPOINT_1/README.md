@@ -2,52 +2,95 @@
 
 This project fetches a sample remote-sensing dataset (LiDAR or Sentinel-2), extracts minimal features, and generates a plain-English summary using an OpenAI model.
 
-## Quickstart
+## Environment Setup
 
-### Option 1: Using conda (recommended for easier dependency management)
-1. **Environment setup**
-   - Install [conda](https://docs.conda.io/en/latest/)
-   - Create and activate the environment:
-     ```sh
-     conda create -n amazon-env python=3.11
-     conda activate amazon-env
-     conda install -c conda-forge rasterio laspy pdal
-     pip install openai boto3 python-dotenv
-     ```
+### Option 1: Using conda (recommended)
+1. **Install conda**
+   - Download and install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or [Anaconda](https://www.anaconda.com/products/distribution)
 
-### Option 2: Using venv
-1. **Environment setup**
-   - Create and activate a virtual environment:
-     ```sh
-     python -m venv amazon-env
-     source amazon-env/bin/activate  # On Windows: .\amazon-env\Scripts\activate
-     pip install rasterio laspy pdal openai boto3 python-dotenv
-     ```
-   - Note: On some systems, you may need to install system dependencies first:
-     ```sh
-     # Ubuntu/Debian
-     sudo apt-get install -y python3-dev libgdal-dev
-     
-     # macOS (using Homebrew)
-     brew install gdal
-     ```
-2. **API key**
-   - Create a `.env` file in the project root:
-     ```
-     OPENAI_API_KEY=sk-...
-     ```
-3. **Run the workflow**
-   - By default, runs LiDAR. To run Sentinel-2, set `DATASET_TYPE=sentinel2` in your environment.
-   - Run:
-     ```sh
-     python console_output.py
-     ```
+2. **Create and activate environment**
+   ```bash
+   # Navigate to the CHECKPOINT_1 directory
+   cd CHECKPOINT_1
+   
+   # Create environment from environment.yml
+   conda env create -f environment.yml
+   
+   # Activate the environment
+   conda activate amazon-env-checkpoint1
+   ```
 
-## Files
+### Option 2: Using pip/venv
+1. **Create and activate virtual environment**
+   ```bash
+   # Navigate to the CHECKPOINT_1 directory
+   cd CHECKPOINT_1
+   
+   # Create virtual environment
+   python -m venv venv
+   
+   # Activate the environment
+   # On macOS/Linux:
+   source venv/bin/activate
+   # On Windows:
+   # .\venv\Scripts\activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   ```
+
+2. **System Dependencies (if needed)**
+   Some packages might require system-level dependencies:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install -y python3-dev libgdal-dev
+   
+   # macOS (using Homebrew)
+   brew install gdal
+   ```
+
+## Configuration
+
+1. **API Keys**
+   Create a `.env` file in the CHECKPOINT_1 directory with your API keys:
+   ```
+   OPENAI_API_KEY=your_openai_api_key_here
+   # Add any other required API keys
+   ```
+
+## Usage
+
+1. **Run the workflow**
+   ```bash
+   # Default: Runs LiDAR analysis using OpenAI
+   python console_output.py
+   
+   # For Sentinel-2 analysis
+   export DATASET_TYPE=sentinel2
+   python console_output.py
+   
+   # To use OpenRouter instead of OpenAI
+   export API_TYPE=openrouter
+   python console_output.py
+   
+   # Combine options (e.g., Sentinel-2 with OpenRouter)
+   export DATASET_TYPE=sentinel2
+   export API_TYPE=openrouter
+   python console_output.py
+   ```
+
+### Environment Variables
+- `DATASET_TYPE`: Set to `lidar` (default) or `sentinel2`
+- `API_TYPE`: Set to `openai` (default) or `openrouter`
+
+## Project Structure
+
 - `dataset_fetching.py` – Download LiDAR or Sentinel-2 data
 - `feature_extraction.py` – Compute minimal stats for each dataset
 - `openai_integration.py` – Send stats to OpenAI and get summary
 - `console_output.py` – Main script: fetch, extract, call model, print
+- `requirements.txt` – Python package dependencies (for pip)
+- `environment.yml` – Conda environment specification
 
 ## Customization
 - Change dataset IDs or model in the respective Python files or via environment variables.
