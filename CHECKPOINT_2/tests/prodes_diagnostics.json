@@ -1,0 +1,120 @@
+{
+  "connectivity": {
+    "endpoint_reachable": true,
+    "capabilities_accessible": true,
+    "response_time_ms": 1003.776,
+    "error": null
+  },
+  "layer_availability": {
+    "2020": {
+      "layer_name": "prodes-amazon-nb:yearly_deforestation_biome",
+      "accessible": true,
+      "total_features": "unknown",
+      "error": "Non-JSON response"
+    },
+    "2021": {
+      "layer_name": "prodes-amazon-nb:yearly_deforestation_biome",
+      "accessible": true,
+      "total_features": "unknown",
+      "error": "Non-JSON response"
+    },
+    "2022": {
+      "layer_name": "prodes-amazon-nb:yearly_deforestation_biome",
+      "accessible": true,
+      "total_features": "unknown",
+      "error": "Non-JSON response"
+    },
+    "2023": {
+      "layer_name": "prodes-amazon-nb:yearly_deforestation_biome",
+      "accessible": true,
+      "total_features": "unknown",
+      "error": "Non-JSON response"
+    }
+  },
+  "bbox_testing": {
+    "0.0": {
+      "bbox": {
+        "min_lon": -59.813892,
+        "min_lat": -5.253821,
+        "max_lon": -58.332325,
+        "max_lat": -3.983349
+      },
+      "feature_count": 0,
+      "success": false,
+      "error": "Non-JSON response"
+    },
+    "0.5": {
+      "bbox": {
+        "min_lon": -60.184283750000006,
+        "min_lat": -5.571439000000001,
+        "max_lon": -57.961933249999994,
+        "max_lat": -3.665731
+      },
+      "feature_count": 0,
+      "success": false,
+      "error": "Non-JSON response"
+    },
+    "1.0": {
+      "bbox": {
+        "min_lon": -60.5546755,
+        "min_lat": -5.889057,
+        "max_lon": -57.59154149999999,
+        "max_lat": -3.3481129999999997
+      },
+      "feature_count": 0,
+      "success": false,
+      "error": "Non-JSON response"
+    },
+    "2.0": {
+      "bbox": {
+        "min_lon": -61.29545900000001,
+        "min_lat": -6.524293,
+        "max_lon": -56.85075799999999,
+        "max_lat": -2.7128769999999998
+      },
+      "feature_count": 0,
+      "success": false,
+      "error": "Non-JSON response"
+    },
+    "5.0": {
+      "bbox": {
+        "min_lon": -63.51780950000001,
+        "min_lat": -8.430001,
+        "max_lon": -54.62840749999998,
+        "max_lat": -0.8071689999999996
+      },
+      "feature_count": 0,
+      "success": false,
+      "error": "Non-JSON response"
+    }
+  },
+  "alternative_endpoints": {
+    "main": {
+      "endpoint": "https://terrabrasilis.dpi.inpe.br/geoserver/ows",
+      "accessible": true,
+      "status_code": 200,
+      "content_type": "application/xml",
+      "error": null
+    },
+    "wfs_specific": {
+      "endpoint": "https://terrabrasilis.dpi.inpe.br/geoserver/wfs",
+      "accessible": true,
+      "status_code": 200,
+      "content_type": "application/xml",
+      "error": null
+    },
+    "alternative": {
+      "endpoint": "https://terrabrasilis.dpi.inpe.br/geoserver/prodes-amazon-nb/wfs",
+      "accessible": true,
+      "status_code": 200,
+      "content_type": "application/xml",
+      "error": null
+    }
+  },
+  "existing_debug": {
+    "feature_count": 0,
+    "success": false,
+    "columns": [],
+    "total_area_ha": 0
+  }
+}

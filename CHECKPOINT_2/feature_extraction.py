@@ -100,14 +100,17 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> Optio
 # ===============================================================================
 def sentinel2_gee_extract_features(
     gee_data: dict,
-    scale: int = 20, # Compromise resolution for comprehensive band statistics.
+    scale: int = 20, #Compromised resolution for all multispectral bands.
     thumb_dimensions: str = '768x768', # Thumbnail dimensions.
     show_image: bool = True
 ) -> Optional[Dict[str, Any]]:
     """
-    Computing stats and generating multiple visualizations for a Sentinel-2 GEE Image.
+    Computing stats for all 12 multispectral bands and generating multiple visualizations for a 
+    Sentinel-2 GEE Image. 
+    Reminder: B10 is not included in the GEE Image being used here, due to it not being included in 
+    the L2A data, since its already atmospherically corrected.
     Returns a dict containing RGB composite, NDVI heatmap, false-color composite as base64,
-    along with comprehensive statistics and metadata for AI analysis.
+    along with comprehensive statistics and metadata for future AI analysis.
     """
     if not gee_data or not gee_data.get("image"):
         error_msg = gee_data.get("error", "GEE image not provided or invalid.")
@@ -118,10 +121,10 @@ def sentinel2_gee_extract_features(
             "roi_bounds": gee_data.get("roi_bounds"),
             "gee_image_details": "No image processed."
         }
+
     image = gee_data["image"]
     roi = gee_data["roi"]
     roi_bounds = gee_data["roi_bounds"]
-    all_spectral_bands = gee_data["bands_included"]
 
     # Creating a composite reducer that computes multiple stats all in one operation:
     reducers = (
@@ -131,11 +134,12 @@ def sentinel2_gee_extract_features(
         .combine(ee.Reducer.percentile([2, 98]).unweighted(), sharedInputs=True)
         .combine(ee.Reducer.count().unweighted(), sharedInputs=True)
     )
-
+    # All 12 pertinent multispectral bands from Sentinel-2 will be used for full coverage:
+    all_spectral_bands = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']    
     try:
         # Computation of the stats for each selected band, given image, ROI, scale, and reducers:
         print(f"Calculating stats for bands: {all_spectral_bands} at {scale}m scale...")
-        band_stats = image.select(all_spectral_bands).reduceRegion(
+        band_stats = image.select(all_spectral_bands).reduceRegion( 
             reducer=reducers,
             geometry=roi,
             scale=scale,
@@ -160,7 +164,7 @@ def sentinel2_gee_extract_features(
             "gee_image_details": "Failed during band statistics."
         }
 
-    # Computing the NDVI (Normalized Difference Vegetation Index) and its stats:
+    # Calculating NDVI (Normalized Difference Vegetation Index) and its stats:
     # NDVI is computed as (NIR - Red) / (NIR + Red), where NIR=near-infrared, band 8, and Red is band 4.
     ndvi_stats = {}
     try:
@@ -190,46 +194,6 @@ def sentinel2_gee_extract_features(
             gee_key = f"{band}_{reducer_key_part}"
             all_stats[f"{band}_{stat_key}"] = band_stats.get(gee_key)
     all_stats.update(ndvi_stats)
-    
-    # Additional regional analysis stats for LLM consumption:
-    regional_analysis = {}
-    if all_stats:
-        # Core NDVI regional statistics:
-        print("Computing additional regional stats for analysis...")
-        regional_analysis['region_ndvi_mean'] = all_stats.get('NDVI_mean', 0.0)
-        regional_analysis['region_ndvi_std'] = all_stats.get('NDVI_stdDev', 0.0)
-        regional_analysis['region_ndvi_range'] = (all_stats.get('NDVI_max', 0.0) - 
-                                                 all_stats.get('NDVI_min', 0.0))
-        
-        # Band means for vegetation health calculation:
-        b4_mean = all_stats.get('B4_mean', 0.0)
-        b5_mean = all_stats.get('B5_mean', 0.0)  # Red edge (if available)
-        b8_mean = all_stats.get('B8_mean', 0.0)
-        
-        # Regional vegetation health composite (NDVI weighted 70% + red edge NDVI 30%):
-        if (b8_mean + b5_mean) > 0:
-            red_edge_ndvi = (b8_mean - b5_mean) / (b8_mean + b5_mean)
-            regional_analysis['region_vegetation_health'] = (0.7 * regional_analysis['region_ndvi_mean'] + 
-                                                           0.3 * red_edge_ndvi)
-        else:
-            regional_analysis['region_vegetation_health'] = regional_analysis['region_ndvi_mean']
-        
-        # Regional spectral baseline (NIR/SWIR vs visible contrast):
-        visible_bands = [all_stats.get('B2_mean', 0.0), all_stats.get('B3_mean', 0.0), b4_mean]
-        nir_swir_bands = [b8_mean, all_stats.get('B11_mean', 0.0), all_stats.get('B12_mean', 0.0)]
-        
-        if any(b > 0 for b in visible_bands + nir_swir_bands):
-            visible_avg = np.mean([b for b in visible_bands if b > 0])
-            nir_swir_avg = np.mean([b for b in nir_swir_bands if b > 0])
-            if visible_avg > 0:
-                regional_analysis['region_spectral_baseline'] = nir_swir_avg / visible_avg
-            else:
-                regional_analysis['region_spectral_baseline'] = 0.0
-        else:
-            regional_analysis['region_spectral_baseline'] = 0.0
-    
-    # Adding the regional analysis to the statistics:
-    all_stats.update(regional_analysis)
 
     # Initializing variables for the image thumbnails:
     rgb_image_base64 = None
@@ -372,7 +336,6 @@ def sentinel2_gee_extract_features(
                 print(f"Could not display false-color composite: {e_show}")
 
     # Compiling results with enhanced data structure... base64 images, metadata, stats, etc.
-    print("Compiling results with an enhanced data structure for AI analysis and further usage...")
     return {
         "image": rgb_image_base64,        
         "ndvi_image": ndvi_image_base64,
@@ -413,10 +376,3 @@ def sentinel2_gee_extract_features(
             f"False-color={'Present' if false_color_image_base64 else 'Absent'}."
         )
     }
-
-
-# Example usage (do not run if just producing code):
-# lidar_file = fetch_dataset("lidar")
-# lidar_stats = lidar_ot_extract_features(lidar_file)
-# s2_files = fetch_dataset("sentinel2")
-# s2_gee_stats = sentinel2_gee_extract_features(s2_files)

@@ -1,0 +1,38 @@
+================================================================================
+PRODES DEBUGGING DIAGNOSTIC REPORT
+================================================================================
+Generated: 2025-06-19 21:29:34
+
+1. WFS CONNECTIVITY:
+   - Endpoint reachable: ✓
+   - Capabilities accessible: ✓
+   - Response time: 1003.8ms
+
+2. LAYER AVAILABILITY:
+   - 2020: ✓ (Features: unknown)
+   - 2021: ✓ (Features: unknown)
+   - 2022: ✓ (Features: unknown)
+   - 2023: ✓ (Features: unknown)
+
+3. BBOX SIZE TESTING:
+   - Expansion factor 0.0: ✗ (0 features)
+   - Expansion factor 0.5: ✗ (0 features)
+   - Expansion factor 1.0: ✗ (0 features)
+   - Expansion factor 2.0: ✗ (0 features)
+   - Expansion factor 5.0: ✗ (0 features)
+
+4. ALTERNATIVE ENDPOINTS:
+   - main: ✓
+   - wfs_specific: ✓
+   - alternative: ✓
+
+5. EXISTING DEBUG FUNCTION:
+   - Success: ✗
+   - Features retrieved: 0
+   - Total area: 0.00 hectares
+
+6. RECOMMENDATIONS:
+   - ⚠ No features found in any bbox size - data may not exist for this region/year
+   - ⚠ Consider testing different geographic regions
+   - ⚠ Consider testing different years (2019, 2020, 2021)
+   - ⚠ All debugging approaches failed - may need to wait for service restoration

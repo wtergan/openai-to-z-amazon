@@ -1,0 +1,37 @@
+[
+  {
+    "cell_id": "898aa8691abffff",
+    "provider": "openrouter",
+    "model_name": "google/gemma-3-27b-it",
+    "message_hash": "072614c12768042dbbd42f29c60331234059655282bc2f1412f751846108d3a9",
+    "llm_response": "```json\n{\n  \"potential\": \"low\",\n  \"rationale\": [\n    \"The `canopy_height_range_norm` of 0.90 suggests significant vertical structure within the canopy, but this could be natural variation, not necessarily indicative of engineered features.\",\n    \"The `deforest_impact_norm` is 0.0, indicating no recent deforestation disturbance, reducing the likelihood of exposing past anthropogenic features.\",\n    \"The `shot_density_norm` is 0.0, this may imply sparse LiDAR coverage in this cell or a lack of complex ground features detectable by LiDAR, contributing to low confidence in identifying constructed elements.\"\n  ],\n  \"priority\": 2\n}\n```"
+  },
+  {
+    "cell_id": "898aa86910bffff",
+    "provider": "openrouter",
+    "model_name": "google/gemma-3-27b-it",
+    "message_hash": "74cf3a1697d3635852ca75a31abc618ad2eea78b674608be35d38d7ecb44f83e",
+    "llm_response": "```json\n{\n  \"potential\": \"low\",\n  \"rationale\": [\n    \"The `canopy_height_range_norm` is 1.0, indicating a high degree of variability in canopy height, but this could be due to natural forest dynamics and not necessarily indicative of anthropogenic structures.\",\n    \"The `deforestation_impact_norm` is 0.0, meaning there's been no recent disturbance, which generally reduces the probability of unearthing previously hidden features.\",\n    \"The `shot_density_norm` is extremely low (0.0), suggesting limited LiDAR returns and/or a lack of geometric complexity that might hint at earthworks.  The Sentinel-2 statistics demonstrate a mostly mature forest canopy.\"\n  ],\n  \"priority\": 1\n}\n```"
+  },
+  {
+    "cell_id": "898aa919897ffff",
+    "provider": "openrouter",
+    "model_name": "google/gemma-3-27b-it",
+    "message_hash": "215ed4a3232053bbb87c6697ee19a0150e61ab5cf8d0c88a5a099e9482cdd383",
+    "llm_response": "```json\n{\n  \"potential\": \"low\",\n  \"rationale\": [\n    \"The `deforest_impact_norm` is 1.0, indicating recent significant deforestation. While deforestation can *reveal* features, it makes active archaeological site detection more challenging due to ground disturbance.\",\n    \"The `canopy_height_range_norm` is low at 0.1889, suggesting relatively uniform canopy height. The absence of significant height variations reduces the probability of detecting earthworks or mounds.\",\n    \"The `terrain_complexity_norm` is 0.0, implying a very flat landscape which limits potential for naturally interesting features or anomalies.\"\n  ],\n  \"priority\": 2\n}\n```"
+  },
+  {
+    "cell_id": "898aa81705bffff",
+    "provider": "openrouter",
+    "model_name": "google/gemma-3-27b-it",
+    "message_hash": "ffb595ac853617e87c5041c17bb0b761733c211cb363fff3c9f723670c33fba7",
+    "llm_response": "```json\n{\n  \"potential\": \"low\",\n  \"rationale\": [\n    \"The `canopy_height_range_norm` of 0.89 suggests considerable vertical complexity in the forest structure, which could be natural variation or represent ridges or other topographic features, but does not strongly indicate human modification.\",\n    \"The `deforest_impact_norm` of 0.0 indicates no recent significant deforestation in the cell, making recent anthropogenic activity less likely.\",\n    \"The `terrain_complexity_norm` of 0.0 suggests a relatively flat terrain, although this does not necessarily rule out subtle earthworks, it makes them less likely to be detectable using these metrics.\"\n  ],\n  \"priority\": 2\n}\n```"
+  },
+  {
+    "cell_id": "898aad57047ffff",
+    "provider": "openrouter",
+    "model_name": "google/gemma-3-27b-it",
+    "message_hash": "8d5894849475454bbf681b53645f9666996a9a80fecdeba12ab5f60843f66c52",
+    "llm_response": "```json\n{\n  \"potential\": \"low\",\n  \"rationale\": [\n    \"The `height_variability_norm` (0.9058) is relatively high, suggesting some micro-topographic variation, but not necessarily anthropogenic in origin.\",\n    \"The `shot_density_norm` (0.0) indicates a particularly low number of LiDAR returns for this cell, limiting our ability to discern fine-scale features. GEDI's sensitivity may be insufficient to detect subtle earthworks.\",\n    \"The Sentinel-2 statistics reveal generally high NDVI values (mean 0.7956) and a lack of spectral anomalies.  The relatively consistent and high reflectance across bands (B4, B5, B8, B9) indicate a healthy forest canopy with no stark differences indicative of, for example, ADE soils.\",\n    \"The `deforest_impact_norm` is 0.0 which shows this area is not recently disturbed.\"\n  ],\n  \"priority\": 2\n}\n```"
+  }
+]
