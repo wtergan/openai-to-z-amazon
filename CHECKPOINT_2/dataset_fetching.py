@@ -189,7 +189,7 @@ def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, e
         return None
 
 # ==============================================================================
-# SENTINEL-2 DATA FETCHING AND PROCESSING
+# SENTINEL-2 DATA FETCHING AND PROCESSING (Google Earth Engine)
 # ==============================================================================
 def cloud_mask_s2_sr(image: ee.Image) -> ee.Image:
     """Cloud mask creation for Sentinel-2 Surface Reflectance using SCL band."""

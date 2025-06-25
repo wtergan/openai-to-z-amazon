@@ -2,7 +2,7 @@
 Feature engineering module for GEDI-PRODES-SRTM-Sentinel2 anomaly detection.
 
 This module processes GEDI points by snapping them to a deterministic H3 grid,
-computes per-cell statistics, and joins with PRODES attributes. Outputs are
+computes per-cell statistics, and joins with PRODES and SRTM attributes. Outputs are
 normalized and ready for anomaly scoring.
 In-line comments heavily annotated to help explain heavy DataFrame transformations.
 Note that LiDAR data is not used in this module, as it is only used for general plotting and 
