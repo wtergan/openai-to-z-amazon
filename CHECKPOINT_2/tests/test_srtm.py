@@ -7,6 +7,15 @@ Tests the fetch_srtm function with a small bounding box using the current API.
 import os
 import sys
 import logging
+
+import pytest
+
+if os.getenv("RUN_GEE_INTEGRATION_TESTS") != "1":
+    pytest.skip(
+        "requires Earth Engine and live geospatial services; set RUN_GEE_INTEGRATION_TESTS=1",
+        allow_module_level=True,
+    )
+
 import pandas as pd
 
 # ===============================================================================

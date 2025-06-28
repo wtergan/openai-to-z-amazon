@@ -3,6 +3,15 @@ Simple test script for testing with real OpenRouter API.
 Run this after setting up your API keys in environment variables.
 """
 import os
+
+import pytest
+
+if os.getenv("RUN_API_INTEGRATION_TESTS") != "1":
+    pytest.skip(
+        "requires live API/geospatial services; set RUN_API_INTEGRATION_TESTS=1",
+        allow_module_level=True,
+    )
+
 from test_anomaly_pipeline import run_full_pipeline_test
 from dataset_fetching import make_bbox
 

@@ -126,7 +126,6 @@ To rerun them, use Colab, Jupyter, or Kaggle with the required dependencies and 
 
 ## Known setup caveats
 
-- The root and checkpoint requirement files are not yet fully consolidated.
-- Some Checkpoint 2 tests currently assume live dependencies or import behavior that needs cleanup.
 - Full reruns depend on external service availability and credentials.
+- Integration tests are opt-in through `RUN_GEE_INTEGRATION_TESTS=1` or `RUN_API_INTEGRATION_TESTS=1`.
 - Preserved JSON outputs and notebooks are the safest artifacts for review without rerunning the whole pipeline.

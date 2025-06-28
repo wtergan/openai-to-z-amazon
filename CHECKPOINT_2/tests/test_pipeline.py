@@ -13,6 +13,8 @@ import tempfile
 import shutil
 from pathlib import Path
 
+import pytest
+
 # ===============================================================================
 # DIRECTORY SETUP AND LOGGING CONFIGURATION
 # ===============================================================================
@@ -34,15 +36,18 @@ try:
         spatial_join_with_srtm, spatial_join_with_prodes
     )
 except ImportError as e:
-    logger.error(f"Import error: {e}")
-    logger.error("Make sure all dependencies are installed: pip install -r requirements.txt")
-    sys.exit(1)
+    pytest.skip(
+        f"Checkpoint 2 optional dependency missing: {e}. Install requirements to run these tests.",
+        allow_module_level=True,
+    )
 
 # ===============================================================================
 # TESTING: COMPLETE PIPELINE
 # ===============================================================================
 def test_small_amazon_region():
     """Test the complete pipeline with a small Amazon region using the current API."""
+    if os.getenv("RUN_GEE_INTEGRATION_TESTS") != "1":
+        pytest.skip("requires Earth Engine and live geospatial services; set RUN_GEE_INTEGRATION_TESTS=1")
     logger.info("Testing GEDI-PRODES-SRTM pipeline with default Amazon region")
     
     # Use the default coordinates from dataset_fetching.py for testing (Amazonas, Brazil):
@@ -157,6 +162,8 @@ def test_small_amazon_region():
 # ===============================================================================
 def test_individual_functions():
     """Test individual functions in the pipeline for robustness."""
+    if os.getenv("RUN_GEE_INTEGRATION_TESTS") != "1":
+        pytest.skip("requires Earth Engine and live geospatial services; set RUN_GEE_INTEGRATION_TESTS=1")
     logger.info("Testing individual pipeline functions")
     
     # Use the default coordinates from dataset_fetching.py for testing (Amazonas, Brazil):
@@ -295,12 +302,14 @@ def test_mock_data():
             logger.info(f"Basic features: {[f for f in basic_features if f in features.columns]}")
             logger.info(f"Normalized features: {len(norm_features)}")
             
+        assert len(cell_stats) > 0
+        assert len(features) > 0
+        assert {'h3_cell', 'lat', 'lon', 'shot_count'}.issubset(features.columns)
+        assert any(col.endswith('_norm') for col in features.columns)
         logger.info("Mock data test completed successfully!")
-        return True
         
     except Exception as e:
-        logger.error(f"Mock data test failed: {e}")
-        return False
+        pytest.fail(f"Mock data test failed: {e}")
 
 # ===============================================================================
 # MAIN TEST SCRIPT

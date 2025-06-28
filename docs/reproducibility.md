@@ -45,19 +45,30 @@ The Checkpoint 2 path should be treated as a credentialed geospatial workflow. I
 
 ## Offline and integration test boundary
 
-The test suite still needs cleanup. The intended future split is:
+The test suite now separates standard-library smoke checks from dependency-heavy checks.
 
-- **offline tests**: mock-data feature engineering, scoring, ranking, and prompt construction;
-- **integration tests**: Earth Engine, OpenTopography, OpenAI, and OpenRouter calls;
-- **manual diagnostics**: service-specific probes and cached-data inspection scripts.
+Default local test command:
 
-The intended offline Checkpoint 2 verification target is:
+```bash
+PYTHONPATH=CHECKPOINT_2 pytest CHECKPOINT_2/tests -q
+```
+
+This runs preserved-artifact smoke tests and skips live-service tests unless explicitly enabled.
+
+Optional integration flags:
+
+```bash
+RUN_GEE_INTEGRATION_TESTS=1 PYTHONPATH=CHECKPOINT_2 pytest CHECKPOINT_2/tests/test_pipeline.py CHECKPOINT_2/tests/test_srtm.py -q
+RUN_API_INTEGRATION_TESTS=1 PYTHONPATH=CHECKPOINT_2 pytest CHECKPOINT_2/tests/test_with_api.py -q
+```
+
+The focused offline/mock Checkpoint 2 target remains:
 
 ```bash
 PYTHONPATH=CHECKPOINT_2 pytest CHECKPOINT_2/tests/test_pipeline.py::test_mock_data -q
 ```
 
-At the time of this documentation pass, the tests still need cleanup to avoid import-time failures when optional service dependencies are missing.
+That target requires the geospatial dependencies from `CHECKPOINT_2/requirements.txt`, but it does not require live API calls.
 
 ## External services and drift
 

@@ -10,6 +10,15 @@ import logging
 import argparse
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+
+import pytest
+
+if os.getenv("RUN_GEE_INTEGRATION_TESTS") != "1":
+    pytest.skip(
+        "requires Earth Engine and live geospatial services; set RUN_GEE_INTEGRATION_TESTS=1",
+        allow_module_level=True,
+    )
+
 import pandas as pd
 import numpy as np
 
