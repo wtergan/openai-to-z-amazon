@@ -30,10 +30,10 @@ The Checkpoint 2 dependency story still needs cleanup. In practice, Checkpoint 2
 Create a `.env` file in the repo root or checkpoint directory with the credentials needed for the paths you plan to run:
 
 ```bash
-OPENAI_API_KEY=...
-OPENROUTER_API_KEY=...
-OT_API_KEY=...
-GEE_PROJECT_ID=...
+OPENAI_API_KEY=your_openai_key_here
+OPENROUTER_API_KEY=your_openrouter_key_here
+OT_API_KEY=your_opentopography_key_here
+GEE_PROJECT_ID=your_ee_project_id_here
 ```
 
 Not every workflow needs every key:

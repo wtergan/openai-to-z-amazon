@@ -66,6 +66,48 @@ Key files:
 - `CHECKPOINT_2/model_integration.py`
 - `CHECKPOINT_2/console_output.py`
 
+## Repository structure
+
+```text
+openai-to-z-challenge/
+├── README.md
+├── assets/
+│   └── readme/
+│       ├── checkpoint1-lidar-hillshade-panel.png
+│       ├── checkpoint1-regional-rgb-context.png
+│       ├── checkpoint1-derived-index-map.png
+│       ├── checkpoint2-derived-context-map.jpg
+│       └── checkpoint2-false-color-infrared-composite.jpg
+├── docs/
+│   ├── setup.md
+│   ├── reproducibility.md
+│   ├── results.md
+│   └── research/
+│       └── source-library.md
+├── CHECKPOINT_1/
+│   ├── Checkpoint_1.ipynb
+│   ├── README.md
+│   ├── console_output.py
+│   ├── dataset_fetching.py
+│   ├── feature_extraction.py
+│   ├── openai_integration.py
+│   ├── requirements.txt
+│   └── environment.yml
+└── CHECKPOINT_2/
+    ├── Checkpoint_2.ipynb
+    ├── README.md
+    ├── anomaly_detect.py
+    ├── console_output.py
+    ├── dataset_fetching.py
+    ├── feature_engineering.py
+    ├── feature_extraction.py
+    ├── model_integration.py
+    ├── test-run_top5.json
+    ├── test-run_top5_llm.json
+    ├── requirements.txt
+    └── tests/
+```
+
 ## Pipeline overview
 
 ```mermaid
@@ -85,15 +127,19 @@ flowchart LR
 
 ## Visual outputs
 
-The checkpoint notebooks produced visual QA artifacts that helped inspect the region across terrain and spectral representations.
+The checkpoint notebooks produced visual QA artifacts that helped inspect the region across terrain and spectral representations. The false-color image below comes from the Checkpoint 2 regional Sentinel-2 display path: after RGB and NDVI heatmap generation, the notebook displays `false_color_image` as **Sentinel-2 False-Color Composite**. In the code this corresponds to the NIR-red-green visualization, where dense vegetation appears red/magenta and water or saturated channels appear dark.
 
 | LiDAR / hillshade context | Regional RGB context |
 | --- | --- |
 | ![LiDAR elevation and hillshade panel](assets/readme/checkpoint1-lidar-hillshade-panel.png) | ![Regional RGB context image](assets/readme/checkpoint1-regional-rgb-context.png) |
 
-| Derived index map | Checkpoint 2 derived context map |
+| Derived index map | False-color infrared composite |
 | --- | --- |
-| ![Derived index map from notebook output](assets/readme/checkpoint1-derived-index-map.png) | ![Checkpoint 2 derived context map](assets/readme/checkpoint2-derived-context-map.jpg) |
+| ![Derived index map from notebook output](assets/readme/checkpoint1-derived-index-map.png) | ![Sentinel-2 false-color infrared composite with vegetation rendered red and waterways rendered dark](assets/readme/checkpoint2-false-color-infrared-composite.jpg) |
+
+| Checkpoint 2 derived context map |
+| --- |
+| ![Checkpoint 2 derived context map](assets/readme/checkpoint2-derived-context-map.jpg) |
 
 These images are documentation artifacts extracted from the preserved notebooks, not newly generated results.
 
@@ -153,47 +199,6 @@ Archaeological and methodological grounding:
 - [Ethics in Archaeological Lidar](https://journal.caa-international.org/articles/10.5334/jcaa.48)
 
 See [`docs/research/source-library.md`](docs/research/source-library.md) for the curated source list.
-
-## Repository structure
-
-```text
-openai-to-z-challenge/
-├── README.md
-├── assets/
-│   └── readme/
-│       ├── checkpoint1-lidar-hillshade-panel.png
-│       ├── checkpoint1-regional-rgb-context.png
-│       ├── checkpoint1-derived-index-map.png
-│       └── checkpoint2-derived-context-map.jpg
-├── docs/
-│   ├── setup.md
-│   ├── reproducibility.md
-│   ├── results.md
-│   └── research/
-│       └── source-library.md
-├── CHECKPOINT_1/
-│   ├── Checkpoint_1.ipynb
-│   ├── README.md
-│   ├── console_output.py
-│   ├── dataset_fetching.py
-│   ├── feature_extraction.py
-│   ├── openai_integration.py
-│   ├── requirements.txt
-│   └── environment.yml
-└── CHECKPOINT_2/
-    ├── Checkpoint_2.ipynb
-    ├── README.md
-    ├── anomaly_detect.py
-    ├── console_output.py
-    ├── dataset_fetching.py
-    ├── feature_engineering.py
-    ├── feature_extraction.py
-    ├── model_integration.py
-    ├── test-run_top5.json
-    ├── test-run_top5_llm.json
-    ├── requirements.txt
-    └── tests/
-```
 
 ## Current reproducibility status
 

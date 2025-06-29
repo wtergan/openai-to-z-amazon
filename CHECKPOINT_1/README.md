@@ -1,6 +1,8 @@
 # Remote Sensing + OpenAI Natural Language Analysis
 
-This project fetches a sample remote-sensing dataset (LiDAR or Sentinel-2), extracts minimal features, and generates a plain-English summary using an OpenAI model.
+This checkpoint fetches a sample remote-sensing dataset (LiDAR or Sentinel-2), extracts terrain and spectral features, and generates a plain-English summary using OpenAI or OpenRouter.
+
+The notebook remains the historical challenge artifact; the Python modules are the reusable version of the same exploratory workflow.
 
 ## Environment Setup
 
@@ -89,7 +91,7 @@ This project fetches a sample remote-sensing dataset (LiDAR or Sentinel-2), extr
 ## Project Structure
 
 - `dataset_fetching.py` – Download LiDAR or Sentinel-2 data
-- `feature_extraction.py` – Compute minimal stats for each dataset
+- `feature_extraction.py` – Compute terrain/spectral stats and visual composites
 - `openai_integration.py` – Send stats to OpenAI and get summary
 - `console_output.py` – Main script: fetch, extract, call model, print
 - `requirements.txt` – Python package dependencies (for pip)
