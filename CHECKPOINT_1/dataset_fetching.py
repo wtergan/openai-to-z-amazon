@@ -9,10 +9,7 @@ from PIL import Image
 from dotenv import load_dotenv
 from typing import Optional, Dict, Any
 
-# ===============================================================================
-# ENVIRONMENT SETUP
-# ===============================================================================
-load_dotenv()  
+load_dotenv()
 OT_API_KEY = os.getenv("OT_API_KEY")
 
 # GEE Initialization state and Project ID:
@@ -46,9 +43,7 @@ def initialize_gee():
             gee_initialized_successfully = False
     return gee_initialized_successfully
 
-# ===============================================================================
 # DEFAULT GLOBAL BBOX COORDINATES (Amazonas, Brazil), used for now
-# ===============================================================================
 S2_DEFAULT_SOUTH = -5.253821
 S2_DEFAULT_NORTH = -3.983349
 S2_DEFAULT_WEST = -59.813892
@@ -56,10 +51,8 @@ S2_DEFAULT_EAST = -58.332325
 S2_DEFAULT_START_DATE = "2023-01-01"
 S2_DEFAULT_END_DATE = "2023-12-31"
 
-# ===============================================================================
 # LiDAR PARAMETERS: OpenTopography API
-# ===============================================================================
-def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, east: float, 
+def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, east: float,
     api_key=OT_API_KEY) -> Optional[str]:
     """
     Download a small LiDAR .tif file from OpenTopography API.
@@ -88,9 +81,7 @@ def fetch_lidar_ot_data(demtype: str, south: float, north: float, west: float, e
         print(f"Error downloading LiDAR data: {e}")
         return None
 
-# ===============================================================================
 # Sentinel-2 PARAMETERS: Google Earth Engine
-# ===============================================================================
 def cloud_mask_s2_sr(image: ee.Image) -> ee.Image:
     """Cloud mask creation for Sentinel-2 Surface Reflectance using SCL band."""
     scl = image.select('SCL')
@@ -112,7 +103,6 @@ def fetch_sentinel2_gee_data(
             raise RuntimeError("GEE could not be initialized. Cannot fetch Sentinel-2 data.")
     roi = ee.Geometry.Rectangle([west, south, east, north])
 
-    # Filtering ImageCollection by ROI, date range, as well as cloud percentage:
     s2_collection = (
         ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
         .filterBounds(roi)
@@ -126,8 +116,7 @@ def fetch_sentinel2_gee_data(
         print(f"Date: {start_date} to {end_date}, Cloud %: < {max_cloud_percentage}")
         return {"image": None, "roi": roi, "count": 0, "error": "No images found"}
     print(f"Found {count} Sentinel-2 images. Creating median composite...")
-    
-    # Creating median composite via applying cloud/valid mask, selecting defined bands, and clipping to ROI:
+
     composite_image = (
         s2_collection.map(cloud_mask_s2_sr)
         .select(['B2', 'B3', 'B4', 'B8'])
@@ -150,9 +139,6 @@ def fetch_sentinel2_gee_data(
         "roi_bounds": [west, south, east, north]
     }
 
-# ===============================================================================
-# DATASET SELECTION
-# ===============================================================================
 def fetch_dataset(dataset_type: str = "lidar") -> dict:
     """
     Download/fetch dataset based on type.
@@ -170,6 +156,3 @@ def fetch_dataset(dataset_type: str = "lidar") -> dict:
     else:
         raise ValueError("dataset_type must be 'lidar' or 'sentinel2'")
 
-# Example usage (do not run if just producing code):
-# lidar_file = fetch_dataset("lidar")
-# s2_files = fetch_dataset("sentinel2")

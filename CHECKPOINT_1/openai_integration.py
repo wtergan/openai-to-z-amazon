@@ -5,9 +5,6 @@ from typing import Dict, Optional
 from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 
-# ===============================================================================
-# OpenAI/ OpenRouter ENVIRONMENT SETUP
-# ===============================================================================
 load_dotenv()
 OPENAI_PROVIDER = "openai"
 OPENROUTER_PROVIDER = "openrouter"
@@ -18,9 +15,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ===============================================================================
 # API MODEL USAGE
-# ===============================================================================
 def call_model_responses(
     analysis_results: dict,
     dataset_type: str,
@@ -36,13 +31,12 @@ def call_model_responses(
     """
     if provider not in [OPENAI_PROVIDER, OPENROUTER_PROVIDER]:
         raise ValueError(f"Unknown provider: {provider}")
-    
-    # OpenAI:
+
     if provider == OPENAI_PROVIDER:
         if client is None:
             raise ValueError("OpenAI client not initialized or API key missing.")
         model_name = model or OPENAI_DEFAULT_MODEL
-        
+
         # Dynamic prompting scheme based on the data type with enhanced vegetation analysis:
         if dataset_type == 'lidar':
             prompt_intro = ("Here are statistics and a hillshade plot derived from LiDAR elevation data. "
@@ -52,10 +46,10 @@ def call_model_responses(
             has_rgb = analysis_results.get("image") is not None
             has_ndvi = analysis_results.get("ndvi_image") is not None
             has_false_color = analysis_results.get("false_color_image") is not None
-            
+
             # Enhanced prompt for multiple visualizations:
             prompt_intro = "Here are statistics and visualizations from a Sentinel-2 L2A satellite median composite. "
-            
+
             if has_rgb and has_ndvi and has_false_color:
                 prompt_intro += ("I'm providing three complementary visualizations: "
                                "1) RGB natural color composite for general landscape features, "
@@ -69,9 +63,9 @@ def call_model_responses(
                                "(red/pink = vegetation, blue = water/urban areas). ")
             elif has_rgb:
                 prompt_intro += "I'm providing an RGB natural color composite. "
-            
+
             prompt_intro += "The statistics include various spectral bands and calculated NDVI (vegetation index)."
-            
+
         # Enhanced analysis instructions for vegetation-focused analysis:
         analysis_instructions = (
             "Please analyze the provided visualizations and statistics. As an expert archaeologist and remote sensing analyst, "
@@ -85,7 +79,7 @@ def call_model_responses(
             "land management practices, or environmental changes. Describe features in plain English with specific "
             "references to what each visualization reveals."
         )
-            
+
         # Conditionally build the content list for the user message; input_text, with input_images if available:
         user_content = [
             {
@@ -102,28 +96,28 @@ def call_model_responses(
                 "type": "input_image",
                 "image_url": f"data:image/jpeg;base64,{analysis_results['image']}"
             })
-            
+
         if analysis_results.get("ndvi_image"):
             user_content.append({
-                "type": "input_image", 
+                "type": "input_image",
                 "image_url": f"data:image/jpeg;base64,{analysis_results['ndvi_image']}"
             })
-            
+
         if analysis_results.get("false_color_image"):
             user_content.append({
                 "type": "input_image",
                 "image_url": f"data:image/jpeg;base64,{analysis_results['false_color_image']}"
             })
-        
+
         # Instructions for system role/behavior; for response API, this replaces the traditional "system" message role:
         instructions = ("You are an expert archaeologist and remote sensing analyst. Your task is to interpret geospatial data. "
                        "You provide clear, insightful, and concise interpretations based on the data provided.")
-        
+
         user_message = {
             "role": "user",
             "content": user_content
         }
-        
+
         try:
             print(f"Sending request to OpenAI Responses API for model: {model_name}...")
             response = client.responses.create(
@@ -146,7 +140,6 @@ def call_model_responses(
         except Exception as e:
             return f"[OpenAI API error] {str(e)}"
 
-    # OpenRouter:
     elif provider == OPENROUTER_PROVIDER:
         if requests is None:
             return "[OpenRouter error] 'requests' package not installed."
@@ -169,10 +162,10 @@ def call_model_responses(
             has_rgb = analysis_results.get("image") is not None
             has_ndvi = analysis_results.get("ndvi_image") is not None
             has_false_color = analysis_results.get("false_color_image") is not None
-            
+
             # Enhanced prompt for multiple visualizations
             prompt_intro = "Here are statistics and visualizations from a Sentinel-2 satellite median composite. "
-            
+
             if has_rgb and has_ndvi and has_false_color:
                 prompt_intro += ("I'm providing three complementary visualizations: "
                                "1) RGB natural color composite for general landscape features, "
@@ -186,9 +179,9 @@ def call_model_responses(
                                "(red/pink = vegetation, blue = water/urban areas). ")
             elif has_rgb:
                 prompt_intro += "I'm providing an RGB natural color composite. "
-            
+
             prompt_intro += "The statistics include various spectral bands and calculated NDVI (vegetation index)."
-            
+
         # Enhanced analysis instructions for vegetation-focused analysis
         analysis_instructions = (
             "Please analyze the provided visualizations and statistics. As an expert archaeologist and remote sensing analyst, "
@@ -202,7 +195,7 @@ def call_model_responses(
             "land management practices, or environmental changes. Describe features in plain English with specific "
             "references to what each visualization reveals."
         )
-            
+
         # Conditionally build the content list for the user message; text input, with image_urls if available:
         user_content = [
             {
@@ -221,7 +214,7 @@ def call_model_responses(
                     "url": f"data:image/jpeg;base64,{analysis_results['image']}"
                 }
             })
-            
+
         if analysis_results.get("ndvi_image"):
             user_content.append({
                 "type": "image_url",
@@ -229,7 +222,7 @@ def call_model_responses(
                     "url": f"data:image/jpeg;base64,{analysis_results['ndvi_image']}"
                 }
             })
-            
+
         if analysis_results.get("false_color_image"):
             user_content.append({
                 "type": "image_url",
@@ -276,9 +269,7 @@ def call_model_responses(
     else:
         return f"[Provider error] Unknown provider: {provider}"
 
-# ===============================================================================
-# BACKWARD-COMPATIBLE API FUNCTIONS 
-# ===============================================================================
+# BACKWARD-COMPATIBLE API FUNCTIONS
 def call_openai_responses(analysis_results: dict, dataset_type: str, provider: str = OPENAI_PROVIDER, model: str = OPENAI_DEFAULT_MODEL) -> str:
     """
     Backward-compatible: Send `analysis_results` to the OpenAI Responses API and get a plain-English description.
@@ -292,4 +283,4 @@ def call_openrouter_responses(analysis_results: dict, dataset_type: str, provide
     Equivalent to call_model_responses(..., provider='openrouter').
     """
     return call_model_responses(analysis_results, dataset_type=dataset_type, provider=provider, model=model)
-    
+

@@ -4,9 +4,6 @@ from dataset_fetching import fetch_dataset, initialize_gee
 from feature_extraction import lidar_ot_extract_features, sentinel2_gee_extract_features
 from openai_integration import call_openrouter_responses, call_openai_responses, OPENROUTER_PROVIDER, OPENAI_PROVIDER, OPENROUTER_DEFAULT_MODEL, OPENAI_DEFAULT_MODEL
 
-# ===============================================================================
-# ENVIRONMENT SETUP
-# ===============================================================================
 DATASET_TYPE = os.environ.get("DATASET_TYPE", "lidar")  # 'lidar' or 'sentinel2'.
 API_TYPE = os.environ.get("API_TYPE", "openai")  # 'openai' or 'openrouter'.
 if DATASET_TYPE not in ["lidar", "sentinel2"]:
@@ -14,16 +11,8 @@ if DATASET_TYPE not in ["lidar", "sentinel2"]:
 if API_TYPE not in ["openai", "openrouter"]:
     raise ValueError("API_TYPE must be 'openai' or 'openrouter'")
 
-# Optional: overrides default dataset types in dataset_fetching.py
-# DATASET_ID = os.environ.get("DATASET_ID")
-# if DATASET_ID is None:
-#     print("No Optional DATASET_ID provided, using default from dataset_fetching.py")
-
 GEE_PROJECT_ID = os.getenv("GEE_PROJECT_ID")
 
-# ===============================================================================
-# MAIN FUNCTION
-# ===============================================================================
 def main():
     # Safety check for GEE initialization:
     if not initialize_gee():
@@ -33,7 +22,6 @@ def main():
         else:
             print("Warning: GEE initialization failed, but proceeding as dataset type is not Sentinel-2.")
 
-    # Fetching specified dataset data:
     print(f"Fetching {DATASET_TYPE} dataset for data retrieval...")
     data = fetch_dataset(DATASET_TYPE)
     if data:
@@ -75,8 +63,7 @@ def main():
     if not analysis_results or not analysis_results.get("statistics"):
         print("Error: Analysis results are invalid or not fetched.")
         return
-    
-    # Call the model (defaults to OpenRouter):
+
     print("\nCalling model for prompting...")
     if analysis_results:
         if API_TYPE == "openai":
@@ -84,12 +71,6 @@ def main():
         elif API_TYPE == "openrouter":
             llm_response = call_openrouter_responses(analysis_results, dataset_type=DATASET_TYPE, provider=OPENROUTER_PROVIDER, model=OPENROUTER_DEFAULT_MODEL)
         print(llm_response)
-    
-    #print(f"Provider: {OPENROUTER_PROVIDER}")
-    #print(f"Model: {OPENROUTER_DEFAULT_MODEL}")
-    #print(f"Dataset type: {DATASET_TYPE}")
-    #print(f"Stats: {stats}")
-    #print("Model output:\n", summary)
 
 if __name__ == "__main__":
     main()

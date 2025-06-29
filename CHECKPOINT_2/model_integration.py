@@ -1,8 +1,8 @@
 """
 Model integration for comprehensive anomalous archaeological feature detection.
 
-Centralized prompting utilities that sends the top-N anomaly H3 cells, along with regional LiDAR and 
-Sentinel-2 context to either OpenAI or OpenRouter models via its APIs. The model returns a structured and 
+Centralized prompting utilities that sends the top-N anomaly H3 cells, along with regional LiDAR and
+Sentinel-2 context to either OpenAI or OpenRouter models via its APIs. The model returns a structured and
 comprehensive assessment indicating whether each cell is likely to contain any anomalous archaeological
 features, all in a JSON format.
 """
@@ -17,9 +17,6 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 
-# ===============================================================================
-# OpenAI/ OpenRouter ENVIRONMENT SETUP AND LOGGING CONFIGURATION
-# ===============================================================================
 load_dotenv()
 OPENAI_PROVIDER = "openai"
 OPENROUTER_PROVIDER = "openrouter"
@@ -37,9 +34,7 @@ if LOG_PATH.parent != Path('.'):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ===============================================================================
 # LLM PROMPT PIPELINE: SYSTEM PROMPT, PER-CELL INSTRUCTIONS, MESSAGE BUILDER
-# ===============================================================================
 # Main system prompt for the provided LLM:
 SYSTEM_PROMPT = (
     "You are a senior Amazonian archaeologist and remote-sensing scientist. "
@@ -47,7 +42,7 @@ SYSTEM_PROMPT = (
     "plus regional LiDAR elevation and Sentinel-2 spectral composites, decide "
     "whether each H3 grid cell encloses a likely anthropogenic feature such as "
     "geoglyphs, ADE soil patches, earthworks, mounded villages, or engineered "
-    "drainage.  Be explicit about which variables drive your reasoning."  
+    "drainage.  Be explicit about which variables drive your reasoning."
 )
 
 # Per-cell specific instructions for the provided LLM:
@@ -64,7 +59,7 @@ CELL_INSTRUCTIONS = (
 def build_messages(cell: Dict[str, Any], lidar_s2_ctx: Dict[str, Any], regional_assessment: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Function that facilitates the construction of a multimodal message list, suitable for both OpenAI and
-    OpenRouter models. 
+    OpenRouter models.
     """
     # Cell text; per-cell feature vector from GEDI, STRM, PRODES + per-cell instructions, in JSON format:
     cell_text  =  "### Anomaly Cell Feature Vector\n" \
@@ -90,19 +85,16 @@ def build_messages(cell: Dict[str, Any], lidar_s2_ctx: Dict[str, Any], regional_
         + json.dumps(lidar_s2_ctx.get("statistics", {}), indent=2)
     user_content.append({"type": "text", "text": stats_text})
 
-    # Finally, returning the complete message for the LLM; system + user content:
-    return [{"role": "system", "content": SYSTEM_PROMPT}, 
+    return [{"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content}
            ]
 
-# ===============================================================================
 # OPENAI API MODEL CALL
-# ===============================================================================
 def openai_model_call(
     messages: List[Dict[str, Any]],
     model_name: Optional[str] = None,
     temperature: float = 1.0,
-    max_tokens: int = 128000,   
+    max_tokens: int = 128000,
     **kwargs
 ) -> str:
     """
@@ -122,16 +114,14 @@ def openai_model_call(
         logger.info("Response received from OpenAI Chat Completions API.")
         return llm_response.choices[0].message.content.strip()
     except OpenAIError as e:
-        return f"[OpenAI API error] {str(e)}"   
+        return f"[OpenAI API error] {str(e)}"
 
-# ===============================================================================
 # OPENROUTER API MODEL CALL
-# ===============================================================================
 def openrouter_model_call(
     messages: List[Dict[str, Any]],
     model_name: Optional[str] = None,
     temperature: float = 1.0,
-    max_tokens: int = 128000,   
+    max_tokens: int = 128000,
     **kwargs
 ) -> str:
     """
@@ -139,7 +129,7 @@ def openrouter_model_call(
     """
     if not OPENROUTER_API_KEY:
         return "[OpenRouter API error] OpenRouter API key is missing."
-    
+
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
@@ -149,8 +139,8 @@ def openrouter_model_call(
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
-    }    
-    
+    }
+
     try:
         logger.info(f"Sending request to OpenRouter API for model: {model_name}...")
         llm_response = requests.post("https://openrouter.ai/api/v1/chat/completions",headers=headers, json=payload, timeout=120)
@@ -162,19 +152,17 @@ def openrouter_model_call(
     except Exception as e:
         return f"[OpenRouter API error] {str(e)}"
 
-# ===============================================================================
 # UNIFIED WRAPPER FOR API MODEL CALLS
-# ===============================================================================
 def llm_model_call(
     messages: List[Dict[str, Any]],
-    provider: str = OPENAI_PROVIDER,    
+    provider: str = OPENAI_PROVIDER,
     model_name: Optional[str] = None,
     temperature: float = 1.0,
-    max_tokens: int = 128000,   
+    max_tokens: int = 128000,
     **kwargs,
 ) -> str:
     """
-    Convenient unified wrapper for the API model calls. Sends the already-build chat messages to the 
+    Convenient unified wrapper for the API model calls. Sends the already-build chat messages to the
     chosen LLM provider, and returns the LLM's response.
     """
     if provider == OPENAI_PROVIDER:
@@ -186,9 +174,6 @@ def llm_model_call(
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
-# ===============================================================================
-# MAIN FUNCTION: FROM TOP-N SCORING CELLS TO LLM RESPONSE
-# ===============================================================================
 def analyze_top_n_cells(
     top_n_cells: List[Dict[str, Any]],
     lidar_s2_ctx: Dict[str, Any],
@@ -201,7 +186,7 @@ def analyze_top_n_cells(
 ) -> List[Dict[str, Any]]:
     """
     Faciliates the full process of anomalous archaeological feature detection via LLM usage.
-    Loops through the top-N best scoring cells, builds a comprehensive multimodal message to send to a 
+    Loops through the top-N best scoring cells, builds a comprehensive multimodal message to send to a
     specified LLM provider for inquiry, and collects the structured LLM assessment(s) for logging.
     Each resultant logging entry is a dictionary with the following keys:
         - cell_id: the cell feature vector's ID.
@@ -215,22 +200,20 @@ def analyze_top_n_cells(
     for idx, cell in enumerate(top_n_cells, start=1):
         cell_id = cell.get("h3_cell", f"cell_{idx}")
         logger.info(f"Sending cell {cell_id} and regional context to {provider} API...")
-        
+
         messages = build_messages(cell, lidar_s2_ctx)
         llm_response = llm_model_call(messages, provider, model_name, temperature, max_tokens, **kwargs)
-        
-        # Log Entry:
+
         entry = {
             "cell_id": cell_id,
             "provider": provider,
-            "model_name": model_name or (OPENAI_DEFAULT_MODEL if provider == OPENAI_PROVIDER 
+            "model_name": model_name or (OPENAI_DEFAULT_MODEL if provider == OPENAI_PROVIDER
                                         else OPENROUTER_DEFAULT_MODEL),
             "message_hash": hashlib.sha256(json.dumps(messages, sort_keys=True).encode()).hexdigest(),
             "llm_response": llm_response,
         }
         results.append(entry)
 
-    # Save logged entries to specified log file path:
     if save_log:
         with LOG_PATH.open("a") as entry_path:
             for entry in results:
@@ -238,9 +221,7 @@ def analyze_top_n_cells(
         logger.info(f"Logged {len(results)} entries (message-response pairs) to {LOG_PATH}")
     return results
 
-# ===============================================================================
 # EFFICIENT BATCH ANALYSIS: SEND REGIONAL CONTEXT ONCE FOR ALL CELLS
-# ===============================================================================
 def build_regional_context_message(lidar_s2_ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Build a message for the LLM to assess only the regional LiDAR and Sentinel-2 context.
@@ -308,7 +289,6 @@ def analyze_top_n_cells_batch(
         "num_cells": len(top_n_cells)
     }
 
-    # Save batch entry to log
     if save_log:
         with LOG_PATH.open("a") as entry_path:
             entry_path.write(json.dumps(batch_entry) + "\n")

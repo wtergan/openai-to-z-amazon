@@ -11,9 +11,7 @@ from matplotlib.colors import LightSource
 import os
 from typing import Optional, Dict, Any
 
-# ===============================================================================
 # LiDAR FEATURE EXTRACTION: OpenTopography API
-# ===============================================================================
 def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> Optional[Dict[str, Any]]:
     """
     Generate and display a plots of LiDAR GeoTIFF data along with some stats.
@@ -29,15 +27,13 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> Optio
             if np.all(np.isnan(lidar_arr)):
                 print("Error: LiDAR data is empty or all NoData values.")
                 return None
-            
+
             # Usage of 2-98 percentiles for avoiding outliers that may affect color mapping:
             vmin, vmax = np.nanpercentile(lidar_arr, [2, 98])
 
-            # Figure with subplots:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
             fig.suptitle("LiDAR Data Analysis", fontsize=16)
 
-            # Main elevation plot:
             print("Generating LiDAR elevation plot...")
             im1 = ax1.imshow(lidar_arr, cmap='terrain', vmin=vmin, vmax=vmax)
             plt.colorbar(im1, ax=ax1, label='Elevation (m)')
@@ -49,25 +45,21 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> Optio
             hillshade = ls.hillshade(lidar_arr, vert_exag=1, dx=src.res[0], dy=src.res[1], fraction=1.0)
             ax2.imshow(hillshade, cmap='gray', alpha=0.8)
             ax2.set_title("Hillshade Visualization")
-            
-            # Show the plot if show_image is True:
+
             print("Displaying the plot(s)...")
             if show_image:
                 plt.show()
 
-            # Save plot to BytesIO buffer as JPEG, tight bbox, 150 DPI:
             print("Saving plot to BytesIO buffer...")
             buf = io.BytesIO()
             plt.tight_layout()
             plt.savefig(buf, format="JPEG", bbox_inches="tight", dpi=150)
             plt.close()
             buf.seek(0)
-            
-            # Binary to base64 conversion:
+
             print("Converting plot to base64 and computation of stats...")
             image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
 
-            # Compiling results:
             ot_stats = {
                 "image": image_base64,
                 "statistics": {
@@ -90,14 +82,11 @@ def lidar_ot_extract_features(lidar_path: str, show_image: bool = True) -> Optio
         print(f"Error processing LiDAR data: {e}")
         return None
     finally:
-        # Clean up the temporary file:
         if os.path.exists(lidar_path):
             os.unlink(lidar_path)
-            print(f"Temporary file {lidar_path} deleted.")    
+            print(f"Temporary file {lidar_path} deleted.")
 
-# ===============================================================================
 # Sentinel-2 FEATURE EXTRACTION: Google Earth Engine
-# ===============================================================================
 def sentinel2_gee_extract_features(
     gee_data: dict,
     scale: int = 20, # Compromise resolution for comprehensive band statistics.
@@ -146,7 +135,7 @@ def sentinel2_gee_extract_features(
     except ee.EEException as e:
         print(f"GEE Error calculating band stats: {e}")
         return {
-            "rgb_image": None, 
+            "rgb_image": None,
             "statistics": {"error": f"GEE band stats error: {e}"},
             "roi_bounds": roi_bounds,
             "gee_image_details": "Failed during band statistics."
@@ -154,7 +143,7 @@ def sentinel2_gee_extract_features(
     except Exception as e_gen:
         print(f"General Error calculating band stats: {e_gen}")
         return {
-            "rgb_image": None, 
+            "rgb_image": None,
             "statistics": {"error": f"General band stats error: {e_gen}"},
             "roi_bounds": roi_bounds,
             "gee_image_details": "Failed during band statistics."
@@ -185,12 +174,12 @@ def sentinel2_gee_extract_features(
     all_stats = {}
     for band in all_spectral_bands:
         for stat_key, reducer_key_part in {
-            "mean": "mean", "min": "min", "max": "max", "std": "stdDev", 
+            "mean": "mean", "min": "min", "max": "max", "std": "stdDev",
             "p2": "p2", "p98": "p98", "count": "count" }.items():
             gee_key = f"{band}_{reducer_key_part}"
             all_stats[f"{band}_{stat_key}"] = band_stats.get(gee_key)
     all_stats.update(ndvi_stats)
-    
+
     # Additional regional analysis stats for LLM consumption:
     regional_analysis = {}
     if all_stats:
@@ -198,26 +187,26 @@ def sentinel2_gee_extract_features(
         print("Computing additional regional stats for analysis...")
         regional_analysis['region_ndvi_mean'] = all_stats.get('NDVI_mean', 0.0)
         regional_analysis['region_ndvi_std'] = all_stats.get('NDVI_stdDev', 0.0)
-        regional_analysis['region_ndvi_range'] = (all_stats.get('NDVI_max', 0.0) - 
+        regional_analysis['region_ndvi_range'] = (all_stats.get('NDVI_max', 0.0) -
                                                  all_stats.get('NDVI_min', 0.0))
-        
+
         # Band means for vegetation health calculation:
         b4_mean = all_stats.get('B4_mean', 0.0)
         b5_mean = all_stats.get('B5_mean', 0.0)  # Red edge (if available)
         b8_mean = all_stats.get('B8_mean', 0.0)
-        
+
         # Regional vegetation health composite (NDVI weighted 70% + red edge NDVI 30%):
         if (b8_mean + b5_mean) > 0:
             red_edge_ndvi = (b8_mean - b5_mean) / (b8_mean + b5_mean)
-            regional_analysis['region_vegetation_health'] = (0.7 * regional_analysis['region_ndvi_mean'] + 
+            regional_analysis['region_vegetation_health'] = (0.7 * regional_analysis['region_ndvi_mean'] +
                                                            0.3 * red_edge_ndvi)
         else:
             regional_analysis['region_vegetation_health'] = regional_analysis['region_ndvi_mean']
-        
+
         # Regional spectral baseline (NIR/SWIR vs visible contrast):
         visible_bands = [all_stats.get('B2_mean', 0.0), all_stats.get('B3_mean', 0.0), b4_mean]
         nir_swir_bands = [b8_mean, all_stats.get('B11_mean', 0.0), all_stats.get('B12_mean', 0.0)]
-        
+
         if any(b > 0 for b in visible_bands + nir_swir_bands):
             visible_avg = np.mean([b for b in visible_bands if b > 0])
             nir_swir_avg = np.mean([b for b in nir_swir_bands if b > 0])
@@ -227,11 +216,10 @@ def sentinel2_gee_extract_features(
                 regional_analysis['region_spectral_baseline'] = 0.0
         else:
             regional_analysis['region_spectral_baseline'] = 0.0
-    
+
     # Adding the regional analysis to the statistics:
     all_stats.update(regional_analysis)
 
-    # Initializing variables for the image thumbnails:
     rgb_image_base64 = None
     ndvi_image_base64 = None
     false_color_image_base64 = None
@@ -251,7 +239,6 @@ def sentinel2_gee_extract_features(
             'format': 'jpg'
         })
 
-        # Downloading and processing the thumbnail; binary to base64 conversion:
         print(f"RGB composite thumbnail URL (first 100 chars): {rgb_thumbnail_url[:100]}...")
         with urllib.request.urlopen(rgb_thumbnail_url, timeout=60) as response:
             img_data = response.read()
@@ -276,18 +263,18 @@ def sentinel2_gee_extract_features(
         # NDVI visualization parameters: red-yellow-green scale for vegetation health
         # Green/yellow for healthy vegetation (0.3-1.0), red/brown for bare soil/stress (-1.0-0.3)
         ndvi_vis_params = {
-            'bands': ['NDVI'], 
-            'min': -0.2, 
-            'max': 0.8, 
+            'bands': ['NDVI'],
+            'min': -0.2,
+            'max': 0.8,
             'palette': ['8B4513', 'CD853F', 'DEB887', 'F0E68C', 'ADFF2F', '32CD32', '228B22']  # Brown to green
         }
-        
+
         ndvi_thumbnail_url = ndvi_image.visualize(**ndvi_vis_params).getThumbURL({
             'region': region_payload,
             'dimensions': thumb_dimensions,
             'format': 'jpg'
         })
-        
+
         print(f"NDVI thumbnail URL (first 100 chars): {ndvi_thumbnail_url[:100]}...")
         with urllib.request.urlopen(ndvi_thumbnail_url, timeout=60) as response:
             ndvi_img_data = response.read()
@@ -298,7 +285,7 @@ def sentinel2_gee_extract_features(
         ndvi_image_base64 = base64.b64encode(ndvi_buf.getvalue()).decode('utf-8')
         ndvi_buf.close()
         print("NDVI heatmap generated and encoded.")
-        
+
     except ee.EEException as e:
         print(f"GEE Error generating NDVI heatmap: {e}")
         ndvi_image_base64 = None
@@ -316,17 +303,17 @@ def sentinel2_gee_extract_features(
         # Vegetation appears red/pink, water appears blue/black, urban appears cyan/blue
         false_color_vis_params = {
             'bands': ['B8', 'B4', 'B3'],  # NIR, Red, Green mapped to RGB
-            'min': 0.0, 
-            'max': 0.3, 
+            'min': 0.0,
+            'max': 0.3,
             'gamma': 1.2
         }
-        
+
         false_color_thumbnail_url = image.visualize(**false_color_vis_params).getThumbURL({
             'region': region_payload,
             'dimensions': thumb_dimensions,
             'format': 'jpg'
         })
-        
+
         print(f"False-color thumbnail URL (first 100 chars): {false_color_thumbnail_url[:100]}...")
         with urllib.request.urlopen(false_color_thumbnail_url, timeout=60) as response:
             false_color_img_data = response.read()
@@ -337,7 +324,7 @@ def sentinel2_gee_extract_features(
         false_color_image_base64 = base64.b64encode(false_color_buf.getvalue()).decode('utf-8')
         false_color_buf.close()
         print("False-color composite generated and encoded.")
-        
+
     except ee.EEException as e:
         print(f"GEE Error generating false-color composite: {e}")
         false_color_image_base64 = None
@@ -348,22 +335,21 @@ def sentinel2_gee_extract_features(
         print(f"General error generating false-color composite: {e_fc}")
         false_color_image_base64 = None
 
-    # Displaying the images if show_image is True. Usage of local default image viewer:
     if show_image:
         if rgb_pil_image:
             print("Displaying RGB thumbnail...")
             try:
-                rgb_pil_image.show() 
+                rgb_pil_image.show()
             except Exception as e_show:
                 print(f"Could not display RGB thumbnail: {e_show}")
-        
+
         if ndvi_pil_image:
             print("Displaying NDVI heatmap...")
             try:
                 ndvi_pil_image.show()
             except Exception as e_show:
                 print(f"Could not display NDVI heatmap: {e_show}")
-        
+
         if false_color_pil_image:
             print("Displaying false-color composite...")
             try:
@@ -371,13 +357,12 @@ def sentinel2_gee_extract_features(
             except Exception as e_show:
                 print(f"Could not display false-color composite: {e_show}")
 
-    # Compiling results with enhanced data structure... base64 images, metadata, stats, etc.
     print("Compiling results with an enhanced data structure for AI analysis and further usage...")
     return {
-        "image": rgb_image_base64,        
+        "image": rgb_image_base64,
         "ndvi_image": ndvi_image_base64,
         "false_color_image": false_color_image_base64, # For backward compatibility.
-        
+
         # Enhanced metadata for AI processing:
         "image_metadata": {
             "rgb_composite": {
@@ -399,8 +384,7 @@ def sentinel2_gee_extract_features(
                 "available": false_color_image_base64 is not None
             }
         },
-        
-        # Existing fields:
+
         "statistics": all_stats,
         "roi_bounds": roi_bounds,
         "gee_image_details": (
@@ -414,9 +398,3 @@ def sentinel2_gee_extract_features(
         )
     }
 
-
-# Example usage (do not run if just producing code):
-# lidar_file = fetch_dataset("lidar")
-# lidar_stats = lidar_ot_extract_features(lidar_file)
-# s2_files = fetch_dataset("sentinel2")
-# s2_gee_stats = sentinel2_gee_extract_features(s2_files)

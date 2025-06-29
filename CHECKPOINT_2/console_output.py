@@ -31,7 +31,6 @@ def main():
     parser.add_argument("--show_images", action="store_true", help="Display images during processing")
     args = parser.parse_args()
 
-    # Parsing the provided bounding box (bbox) coordinates for usage:
     try:
         coords = [float(x) for x in args.bbox.split(',')]
         bbox = make_bbox(*coords)
@@ -45,7 +44,6 @@ def main():
         logging.error("GEE initialization failed.")
         return
 
-    # Dataset fetching pipeline for pertinent GEDI, PRODES, and SRTM data:
     logging.info("Fetching pertinent GEDI, PRODES, and SRTM datasets...")
     gedi_df, prodes_gdf, srtm_df = gedi_prodes_srtm_fetch_pipeline(
         bbox, args.year, args.cache_dir, args.force_refresh
@@ -70,12 +68,10 @@ def main():
     if s2_stats:
         region_features.update(s2_stats)
 
-    # Feature engineering pipeline for GEDI, PRODES, and SRTM data:
     logging.info("Engineering per-cell features...")
     features = feat_engineering_pipeline(gedi_df, prodes_gdf, srtm_df)
     logging.info(f"Generated {len(features)} per-cell feature vectors")
 
-    # Anomaly scoring and ranking pipeline:
     logging.info("Scoring anomalies and top-N ranking...")
     scored = score_cells(features, method='weighted')
     top = rank_cells(scored, n=args.top_n)
@@ -83,7 +79,6 @@ def main():
     for idx, row in top.iterrows():
         logging.info(f"{idx+1}. Cell {row['h3_cell']}: score={row['score']:.4f}, location=({row['lat']:.4f},{row['lon']:.4f})")
 
-    # LLM-based per-cell assessment pipeline:
     llm_results = None
     if args.llm:
         logging.info("\nRunning LLM-based assessment for top cells...")
@@ -98,7 +93,7 @@ def main():
         if isinstance(llm_results, dict) and "cell_assessments" in llm_results:
             logging.info(f"\nRegional Assessment:")
             logging.info(llm_results.get('regional_assessment', 'No regional assessment'))
-            
+
             cell_assessments = llm_results.get("cell_assessments", [])
             for i, entry in enumerate(cell_assessments, 1):
                 cell_id = entry.get('cell_id', f'Cell {i}')
@@ -107,7 +102,6 @@ def main():
         else:
             logging.error(f"Unexpected llm_results format: {type(llm_results)} - {llm_results}")
 
-    # Save per-run results if requested; both the top-N cells and their respective LLM assessments: 
     if args.tag:
         out_file = f"{args.tag}_top{args.top_n}.json"
         with open(out_file, 'w') as f:
