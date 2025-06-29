@@ -83,6 +83,20 @@ flowchart LR
     H --> I[Archaeological leads for review\nnot confirmed discoveries]
 ```
 
+## Visual outputs
+
+The checkpoint notebooks produced visual QA artifacts that helped inspect the region across terrain and spectral representations.
+
+| LiDAR / hillshade context | Regional RGB context |
+| --- | --- |
+| ![LiDAR elevation and hillshade panel](assets/readme/checkpoint1-lidar-hillshade-panel.png) | ![Regional RGB context image](assets/readme/checkpoint1-regional-rgb-context.png) |
+
+| Derived index map | Checkpoint 2 derived context map |
+| --- | --- |
+| ![Derived index map from notebook output](assets/readme/checkpoint1-derived-index-map.png) | ![Checkpoint 2 derived context map](assets/readme/checkpoint2-derived-context-map.jpg) |
+
+These images are documentation artifacts extracted from the preserved notebooks, not newly generated results.
+
 ## Results snapshot
 
 Preserved project artifacts show that the pipeline produced real intermediate and final outputs worth documenting:
@@ -145,6 +159,12 @@ See [`docs/research/source-library.md`](docs/research/source-library.md) for the
 ```text
 openai-to-z-challenge/
 ├── README.md
+├── assets/
+│   └── readme/
+│       ├── checkpoint1-lidar-hillshade-panel.png
+│       ├── checkpoint1-regional-rgb-context.png
+│       ├── checkpoint1-derived-index-map.png
+│       └── checkpoint2-derived-context-map.jpg
 ├── docs/
 │   ├── setup.md
 │   ├── reproducibility.md
